@@ -28,8 +28,11 @@ import driver
 from driver import RGBMatrix, __version__
 from utils import args, led_matrix_options
 
+import brightness_manager
+from brightness_manager import register_matrix
 from data import Data
 from data.config import Config
+from homekit_server import start_homekit_background_thread
 from renderers.main import MainRenderer
 from version import SCRIPT_NAME, SCRIPT_VERSION
 
@@ -160,6 +163,8 @@ if __name__ == "__main__":
 
     # Initialize the matrix
     matrix = RGBMatrix(options=matrixOptions)
+    register_matrix(matrix)
+    start_homekit_background_thread()
     try:
         config, _ = os.path.splitext(command_line_args.config)
         main(matrix, config)
