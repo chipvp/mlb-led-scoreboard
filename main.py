@@ -3,18 +3,16 @@ import sys
 from data.screens import ScreenType
 import debug
 
-if sys.version_info <= (3, 5):
-    debug.error("Please run with python3")
+if sys.version_info < (3, 9):
+    debug.error("Please run with Python >= 3.9")
     sys.exit(1)
 
 import statsapi
 
 statsapi_version = tuple(map(int, statsapi.__version__.split(".")))
-if statsapi_version < (1, 5, 1):
-    debug.error("We require MLB-StatsAPI 1.5.1 or higher. You may need to re-run install.sh")
+if statsapi_version < (1, 9, 0):
+    debug.error("We require MLB-StatsAPI 1.9.0 or higher. You may need to re-run install.sh")
     sys.exit(1)
-elif statsapi_version < (1, 6, 1):
-    debug.warning("We recommend MLB-StatsAPI 1.6.1 or higher. You may want to re-run install.sh")
 
 import logging
 import os
@@ -22,6 +20,7 @@ import threading
 import time
 
 from PIL import Image
+from pathlib import Path
 
 # Important! Import the driver first to initialize it, then import submodules as needed.
 import driver
@@ -41,11 +40,15 @@ def main(matrix, config_base):
 
     # Read scoreboard options from config.json if it exists
     config = Config(config_base, matrix.width, matrix.height)
+    # Set the scoreboard logger
     logger = logging.getLogger("mlbled")
     if config.debug:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.WARNING)
+
+    # Assign the scoreboard logger to statsapi
+    statsapi.logger = logger
 
     # Print some basic info on startup
     debug.info("%s - v%s (%sx%s)", SCRIPT_NAME, SCRIPT_VERSION, matrix.width, matrix.height)
@@ -59,7 +62,8 @@ def main(matrix, config_base):
         debug.log("Using rgbmatrix version %s", __version__)
 
     # Draw startup screen
-    logo_path = os.path.abspath("./assets/mlb-w" + str(matrix.width) + "h" + str(matrix.height) + ".png")
+    logo_filename = "mlb-w{}h{}.png".format(matrix.width, matrix.height)
+    logo_path = (Path(__file__).parent / "assets" / logo_filename).resolve()
 
     # MLB image disabled when using renderer, for now.
     # see: https://github.com/ty-porter/RGBMatrixEmulator/issues/9#issuecomment-922869679
@@ -160,6 +164,10 @@ if __name__ == "__main__":
     # Check for led configuration arguments
     command_line_args = args()
     matrixOptions = led_matrix_options(command_line_args)
+
+    if driver.is_emulated():
+        matrixOptions.emulator_title = f"{SCRIPT_NAME} v{SCRIPT_VERSION}"
+        matrixOptions.icon_path = (Path(__file__).parent / "assets" / "mlb-emulator-icon.png").resolve()
 
     # Initialize the matrix
     matrix = RGBMatrix(options=matrixOptions)
