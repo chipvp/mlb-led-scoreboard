@@ -116,6 +116,7 @@ coordinates/*.json
 
 # Ignore any customized color configs
 colors/*.json
+!colors/scoreboard.json
 
 # Do not ignore example configs or test fixtures
 !*example.json
