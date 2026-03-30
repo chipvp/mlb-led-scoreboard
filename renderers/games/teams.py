@@ -46,10 +46,6 @@ def render_team_banner(
         __render_team_score(canvas, layout, away_colors['text'], away_team, "away", score_spacing)
         __render_team_score(canvas, layout, home_colors['text'], home_team, "home", score_spacing)
 
-    # Draw 1px divider between team banner and bottom half
-    home_bg = bg_coords["home"]
-    divider_y = home_bg["y"] + home_bg["height"]
-    graphics.DrawLine(canvas, 0, divider_y, canvas.width - 1, divider_y, graphics.Color(60, 60, 60))
 
 
 def can_use_full_team_names(canvas, enabled, abbreviate_on_overflow, teams):
