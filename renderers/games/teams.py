@@ -3,6 +3,22 @@ from driver import graphics
 ABSOLUTE = "absolute"
 RELATIVE = "relative"
 
+# Colors at or below this per-channel value are treated as "black"
+_BLACK_THRESHOLD = 15
+# Replacement color — dark enough to be subtle, bright enough to illuminate LEDs
+_BLACK_ADJACENT = {"r": 20, "g": 20, "b": 20}
+
+
+def __lift_black(color):
+    """Replace near-black colors with a dark visible grey.
+
+    Used for the home (bottom) team so its banner doesn't bleed into the
+    black scoreboard area beneath it.
+    """
+    if color["r"] <= _BLACK_THRESHOLD and color["g"] <= _BLACK_THRESHOLD and color["b"] <= _BLACK_THRESHOLD:
+        return _BLACK_ADJACENT
+    return color
+
 def render_team_banner(
     canvas, layout, team_colors, home_team, away_team, full_team_names, short_team_names_for_runs_hits, show_score,
 ):
@@ -20,21 +36,27 @@ def render_team_banner(
     for team in ["away", "home"]:
         # Background
         bg_color = home_colors['home'] if team == "home" else away_colors['home']
+        if team == "home":
+            bg_color = __lift_black(bg_color)
         __draw_filled_box(canvas, bg_coords[team], bg_color)
 
         # Accent
         accent_color = home_colors['accent'] if team == "home" else away_colors['accent']
+        if team == "home":
+            accent_color = __lift_black(accent_color)
         __draw_filled_box(canvas, accent_coords[team], accent_color)
 
     use_full_team_names = can_use_full_team_names(
         canvas, full_team_names, short_team_names_for_runs_hits, [home_team, away_team]
     )
 
+    home_text = __lift_black(home_colors['text'])
+
     away_name_end_pos = __render_team_text(canvas, layout, away_colors['text'], away_team, "away", use_full_team_names)
-    home_name_end_pos = __render_team_text(canvas, layout, home_colors['text'], home_team, "home", use_full_team_names)
+    home_name_end_pos = __render_team_text(canvas, layout, home_text, home_team, "home", use_full_team_names)
 
     __render_record_text(canvas, layout, away_colors['text'], away_team, "away", away_name_end_pos)
-    __render_record_text(canvas, layout, home_colors['text'], home_team, "home", home_name_end_pos)
+    __render_record_text(canvas, layout, home_text, home_team, "home", home_name_end_pos)
 
     if show_score:
         # Number of characters in each score.
@@ -44,7 +66,7 @@ def render_team_banner(
             "errors": max(len(str(away_team.errors)), len(str(home_team.errors))),
         }
         __render_team_score(canvas, layout, away_colors['text'], away_team, "away", score_spacing)
-        __render_team_score(canvas, layout, home_colors['text'], home_team, "home", score_spacing)
+        __render_team_score(canvas, layout, home_text, home_team, "home", score_spacing)
 
 
 
