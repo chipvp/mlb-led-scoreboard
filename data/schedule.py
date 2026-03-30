@@ -129,6 +129,25 @@ class Schedule:
             -1, # no preferred team game
         )
 
+    def get_live_preferred_game_indices(self):
+        """Return indices of all games where a preferred team is currently live."""
+        teams = set(data.teams.get_team_id(t) for t in self.config.preferred_teams)
+        return [
+            i for i, game in enumerate(self._games)
+            if set([game["away_id"], game["home_id"]]).intersection(teams)
+            and (status.is_live(game["status"]) or status.is_fresh(game["status"]))
+        ]
+
+    def next_preferred_game(self):
+        """Advance to the next live preferred team game, cycling through them."""
+        indices = self.get_live_preferred_game_indices()
+        if not indices:
+            return self.next_game()
+
+        next_indices = [i for i in indices if i > self.current_idx]
+        self.current_idx = next_indices[0] if next_indices else indices[0]
+        return self.__current_game()
+
 
     def __next_game_index(self):
         counter = self.current_idx + 1

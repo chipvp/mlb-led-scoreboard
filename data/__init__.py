@@ -79,6 +79,27 @@ class Data:
             self.network_issues = True
 
 
+    def should_rotate_between_preferred_games(self):
+        """True when 2+ preferred teams have live games — triggers preferred-only rotation."""
+        if len(self.config.preferred_teams) < 2:
+            return False
+        return len(self.schedule.get_live_preferred_game_indices()) >= 2
+
+    def advance_to_next_preferred_game(self):
+        game = self.schedule.next_preferred_game()
+        if game is None:
+            self.network_issues = True
+            return
+
+        if game.game_id != self.current_game.game_id:
+            self.current_game = game
+            self.game_changed_time = time.time()
+            self.__update_layout_state()
+            self.print_game_data_debug()
+            self.network_issues = False
+        else:
+            self.refresh_game()
+
     def advance_to_next_game(self):
         game = self.schedule.next_game()
         if game is None:
