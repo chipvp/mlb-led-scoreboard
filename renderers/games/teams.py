@@ -17,10 +17,10 @@ def render_team_banner(
     accent_coords["away"] = layout.coords("teams.accent.away")
     accent_coords["home"] = layout.coords("teams.accent.home")
 
-    black = {"r": 0, "g": 0, "b": 0}
     for team in ["away", "home"]:
         # Background
-        __draw_filled_box(canvas, bg_coords[team], black)
+        bg_color = home_colors['home'] if team == "home" else away_colors['home']
+        __draw_filled_box(canvas, bg_coords[team], bg_color)
 
         # Accent
         accent_color = home_colors['accent'] if team == "home" else away_colors['accent']
