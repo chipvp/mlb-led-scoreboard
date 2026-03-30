@@ -11,17 +11,27 @@ class BrightnessAccessory(Accessory):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        serv_light = self.add_preload_service("Lightbulb", chars=["On", "Brightness"])
+        serv_light = self.add_preload_service('Lightbulb', chars=['On', 'Brightness'])
 
-        self.char_on = serv_light.configure_char("On", setter_callback=self.set_on)
-        self.char_brightness = serv_light.configure_char("Brightness", setter_callback=self.set_brightness)
+        self.char_on = serv_light.configure_char('On', setter_callback=self.set_on)
+        self.char_brightness = serv_light.configure_char('Brightness', setter_callback=self.set_brightness)
+
+        self._last_brightness = 100
 
     def set_on(self, value):
-        print(f"[HomeKit] Power {'ON' if value else 'OFF'}")  # Optional
+        import brightness_manager
+        if value:
+            print(f'[HomeKit] Power ON — restoring brightness to {self._last_brightness}')
+            brightness_manager.set_brightness(self._last_brightness)
+        else:
+            self._last_brightness = brightness_manager.get_brightness()
+            print(f'[HomeKit] Power OFF — saving brightness {self._last_brightness}, dimming to 0')
+            brightness_manager.set_brightness(0)
 
     def set_brightness(self, value):
         import brightness_manager
-        print(f"[HomeKit] Brightness set to {value}")
+        print(f'[HomeKit] Brightness set to {value}')
+        self._last_brightness = value
         brightness_manager.set_brightness(value)
 
 
@@ -29,15 +39,14 @@ def run_homekit_service():
     logging.basicConfig(level=logging.INFO)
     driver = AccessoryDriver(port=51826)
 
-    accessory = BrightnessAccessory(driver, "MLB Scoreboard Brightness")
+    accessory = BrightnessAccessory(driver, 'MLB Scoreboard Brightness')
     driver.add_accessory(accessory)
 
-    print("[HomeKit] Starting accessory server...")
+    print('[HomeKit] Starting accessory server...')
     driver.start()
 
 
 def start_homekit_background_thread():
-    thread = threading.Thread(target=run_homekit_service, name="HomeKitThread", daemon=True)
+    thread = threading.Thread(target=run_homekit_service, name='HomeKitThread', daemon=True)
     thread.start()
-    print("[HomeKit] Background thread started.")
-
+    print('[HomeKit] Background thread started.')
