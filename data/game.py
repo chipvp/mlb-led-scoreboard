@@ -72,12 +72,12 @@ class Game:
                         self._status = next(
                             g["games"][0]["status"] for g in scheduled["dates"] if g["date"] == self.date
                         )
-                    except:
+                    except Exception:
                         debug.error("Failed to get game status from schedule")
 
                 self._uniform_data.update()
                 return UpdateStatus.SUCCESS
-            except:
+            except Exception:
                 debug.exception("Networking Error while refreshing the current game data.")
                 return UpdateStatus.FAIL
         return UpdateStatus.DEFERRED
@@ -224,12 +224,12 @@ class Game:
                 stats = self._current_data["liveData"]["boxscore"]["teams"]["home"]["players"][ID]["seasonStats"][
                     "pitching"
                 ]
-            except:
+            except KeyError:
                 try:
                     stats = self._current_data["liveData"]["boxscore"]["teams"]["away"]["players"][ID]["seasonStats"][
                         "pitching"
                     ]
-                except:
+                except KeyError:
                     return ""
 
         return stats[stat]
@@ -237,41 +237,41 @@ class Game:
     def probable_pitcher_id(self, team):
         try:
             return self._current_data["gameData"]["probablePitchers"][team]["id"]
-        except:
+        except KeyError:
             return None
 
     def decision_pitcher_id(self, decision):
         try:
             return self._current_data["liveData"]["decisions"][decision]["id"]
-        except:
+        except KeyError:
             return None
 
     def batter(self):
         try:
             batter_id = self._current_data["liveData"]["linescore"]["offense"]["batter"]["id"]
             return self.boxscore_name(batter_id)
-        except:
+        except KeyError:
             return ""
 
     def in_hole(self):
         try:
             batter_id = self._current_data["liveData"]["linescore"]["offense"]["inHole"]["id"]
             return self.boxscore_name(batter_id)
-        except:
+        except KeyError:
             return ""
 
     def on_deck(self):
         try:
             batter_id = self._current_data["liveData"]["linescore"]["offense"]["onDeck"]["id"]
             return self.boxscore_name(batter_id)
-        except:
+        except KeyError:
             return ""
 
     def pitcher(self):
         try:
             pitcher_id = self._current_data["liveData"]["linescore"]["defense"]["pitcher"]["id"]
             return self.boxscore_name(pitcher_id)
-        except:
+        except KeyError:
             return ""
 
     def balls(self):
@@ -292,7 +292,7 @@ class Game:
                     play["details"]["type"]["code"],
                     play["details"]["type"]["description"],
                 )
-        except:
+        except (KeyError, IndexError):
             return None
 
     def current_pitcher_pitch_count(self):
@@ -303,26 +303,26 @@ class Game:
                 return self._current_data["liveData"]["boxscore"]["teams"]["away"]["players"][ID]["stats"]["pitching"][
                     "numberOfPitches"
                 ]
-            except:
+            except KeyError:
                 return self._current_data["liveData"]["boxscore"]["teams"]["home"]["players"][ID]["stats"]["pitching"][
                     "numberOfPitches"
                 ]
-        except:
+        except KeyError:
             return 0
 
     def note(self):
         try:
             return self._current_data["liveData"]["linescore"]["note"]
-        except:
+        except KeyError:
             return None
 
     def reason(self):
         try:
             return self._status["reason"]
-        except:
+        except KeyError:
             try:
                 return self._status["detailedState"].split(":")[1].strip()
-            except:
+            except (KeyError, IndexError):
                 return None
 
     def broadcasts(self):

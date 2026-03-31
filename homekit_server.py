@@ -37,13 +37,14 @@ class BrightnessAccessory(Accessory):
 
 def run_homekit_service():
     logging.basicConfig(level=logging.INFO)
-    driver = AccessoryDriver(port=51826)
-
-    accessory = BrightnessAccessory(driver, 'MLB Scoreboard Brightness')
-    driver.add_accessory(accessory)
-
-    print('[HomeKit] Starting accessory server...')
-    driver.start()
+    try:
+        driver = AccessoryDriver(port=51826)
+        accessory = BrightnessAccessory(driver, 'MLB Scoreboard Brightness')
+        driver.add_accessory(accessory)
+        print('[HomeKit] Starting accessory server...')
+        driver.start()
+    except Exception:
+        logging.exception('[HomeKit] Accessory server failed — HomeKit control unavailable')
 
 
 def start_homekit_background_thread():
