@@ -129,4 +129,4 @@ configs/
 
 # Ignore logs
 logs.txt
-logs/
+logs/.brightness_state
