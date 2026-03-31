@@ -363,5 +363,8 @@
       "x": 125,
       "y": 63
     }
+  },
+  "linescore": {
+    "enabled": false
   }
 }

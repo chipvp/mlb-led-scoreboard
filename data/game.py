@@ -15,7 +15,7 @@ API_FIELDS = (
     "gameData,game,id,datetime,dateTime,officialDate,flags,noHitter,perfectGame,status,detailedState,abstractGameState,"
     + "reason,probablePitchers,teams,home,away,abbreviation,teamName,record,wins,losses,players,id,boxscoreName,fullName,liveData,plays,"
     + "currentPlay,result,eventType,playEvents,isPitch,pitchData,startSpeed,details,type,code,description,decisions,"
-    + "winner,loser,save,id,linescore,outs,balls,strikes,note,inningState,currentInning,currentInningOrdinal,offense,"
+    + "winner,loser,save,id,linescore,innings,num,outs,balls,strikes,note,inningState,currentInning,currentInningOrdinal,offense,"
     + "batter,inHole,onDeck,first,second,third,defense,pitcher,boxscore,teams,runs,players,seasonStats,pitching,wins,"
     + "losses,saves,era,hits,errors,stats,pitching,numberOfPitches,weather,condition,temp,wind,metaData,timeStamp"
 )
@@ -160,6 +160,14 @@ class Game:
 
     def away_errors(self):
         return self._current_data["liveData"]["linescore"]["teams"]["away"].get("errors", 0)
+
+    def inning_runs(self, team):
+        """Returns list of runs per completed inning for 'home' or 'away'. None for incomplete innings."""
+        try:
+            innings = self._current_data["liveData"]["linescore"].get("innings", [])
+            return [inning.get(team, {}).get("runs") for inning in innings]
+        except (KeyError, TypeError):
+            return []
 
     def winning_team(self):
         if self._status["abstractGameState"] == "Final":

@@ -370,6 +370,19 @@
       "height": 15
     }
   },
+  "linescore": {
+    "enabled": true,
+    "font_name": "4x6",
+    "innings": 9,
+    "column_width": 5,
+    "show_team": false,
+    "innings_start_x": 67,
+    "total_x": 114,
+    "background": {"x": 64, "y": 0, "width": 63, "height": 19},
+    "header": {"y": 6},
+    "away": {"y": 12},
+    "home": {"y": 18}
+  },
   "network": {
     "font_name": "4x6",
     "background": {

@@ -4,6 +4,7 @@ from data.config.layout import Layout
 from data.scoreboard import Scoreboard
 from data.scoreboard.postgame import Postgame
 from renderers import scrollingtext
+from renderers.games import linescore as linescorerenderer
 from renderers.games import nohitter
 from utils import center_text_position
 
@@ -13,7 +14,16 @@ NORMAL_GAME_LENGTH = 9
 def render_postgame(
     canvas, layout: Layout, colors: Color, postgame: Postgame, scoreboard: Scoreboard, text_pos, is_playoffs
 ):
-    _render_final_inning(canvas, layout, colors, scoreboard)
+    try:
+        linescore_enabled = layout.coords("linescore").get("enabled", False)
+    except KeyError:
+        linescore_enabled = False
+
+    if linescore_enabled:
+        linescorerenderer.render_linescore(canvas, layout, colors, scoreboard)
+    else:
+        _render_final_inning(canvas, layout, colors, scoreboard)
+
     return _render_decision_scroll(canvas, layout, colors, postgame, text_pos, is_playoffs)
 
 
