@@ -42,8 +42,8 @@ class Pregame:
                 era = game.pitcher_stat(home_id, "era", "home")
                 self.home_starter = "{} ({}-{} {} ERA)".format(name, wins, losses, era)
             except:
-                debug.exception("Error getting away starter stats")
-                
+                debug.exception("Error getting home starter stats")
+
         self.national_broadcasts = game.broadcasts()
         self.series_status = game.series_status()
 

@@ -14,8 +14,7 @@ from renderers.games import postgame as postgamerender
 from renderers.games import pregame as pregamerender
 from renderers.games import teams
 
-# TODO(BMW) make configurable time?
-STANDINGS_NEWS_SWITCH_TIME = 120
+STANDINGS_NEWS_SWITCH_TIME = 120  # default fallback; use config.standings_news_rotation_rate when available
 
 
 class MainRenderer:
@@ -54,10 +53,12 @@ class MainRenderer:
             news = True
             standings = self.data.config.standings_mlb_offday
 
+        switch_time = self.data.config.standings_news_rotation_rate
+
         if news and standings:
             while True:
-                self.__draw_news(timer_cond(STANDINGS_NEWS_SWITCH_TIME))
-                self.__draw_standings(timer_cond(STANDINGS_NEWS_SWITCH_TIME))
+                self.__draw_news(timer_cond(switch_time))
+                self.__draw_standings(timer_cond(switch_time))
         elif news:
             self.__draw_news(permanent_cond)
         else:
@@ -77,8 +78,9 @@ class MainRenderer:
         while True:
             if not self.data.schedule.games_live():
                 if self.data.config.news_no_games and self.data.config.standings_no_games:
-                    self.__draw_news(all_of(timer_cond(STANDINGS_NEWS_SWITCH_TIME), self.no_games_cond))
-                    self.__draw_standings(all_of(timer_cond(STANDINGS_NEWS_SWITCH_TIME), self.no_games_cond))
+                    switch_time = self.data.config.standings_news_rotation_rate
+                    self.__draw_news(all_of(timer_cond(switch_time), self.no_games_cond))
+                    self.__draw_standings(all_of(timer_cond(switch_time), self.no_games_cond))
                     continue
                 elif self.data.config.news_no_games:
                     self.__draw_news(self.no_games_cond)

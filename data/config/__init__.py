@@ -71,6 +71,8 @@ class Config:
         self.pregame_weather = json["pregame_weather"]
         self.preferred_game_delay_multiplier = json["preferred_game_delay_multiplier"]
         self.api_refresh_rate = json["api_refresh_rate"]
+        self.preferred_teams_rotation_rate = json["preferred_teams_rotation_rate"]
+        self.standings_news_rotation_rate = json["standings_news_rotation_rate"]
 
         self.debug = json["debug"]
         self.demo_date = json["demo_date"]

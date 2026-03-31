@@ -119,9 +119,6 @@ def __refresh_offday(render_thread, data):  # type: (threading.Thread, Data) -> 
         data.refresh_news_ticker()
 
 
-PREFERRED_TEAMS_ROTATION_RATE = 60
-
-
 def __refresh_gameday(render_thread, data):  # type: (threading.Thread, Data) -> None
     debug.log("Main has selected the gameday information to refresh")
 
@@ -149,7 +146,7 @@ def __refresh_gameday(render_thread, data):  # type: (threading.Thread, Data) ->
 
         if data.should_rotate_between_preferred_games():
             data.refresh_game()
-            if time.time() - preferred_starttime >= PREFERRED_TEAMS_ROTATION_RATE:
+            if time.time() - preferred_starttime >= data.config.preferred_teams_rotation_rate:
                 preferred_starttime = time.time()
                 data.advance_to_next_preferred_game()
         elif data.should_rotate_to_next_game():

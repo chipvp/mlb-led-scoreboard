@@ -46,6 +46,8 @@
 	"short_team_names_for_runs_hits": true,
 	"preferred_game_delay_multiplier": 0,
 	"api_refresh_rate" : 5,
+	"preferred_teams_rotation_rate": 60,
+	"standings_news_rotation_rate": 120,
 	"pregame_weather": true,
 	"scrolling_speed": 2,
 	"debug": false,
