@@ -22,11 +22,11 @@ class BrightnessAccessory(Accessory):
         import brightness_manager
         if value:
             print(f'[HomeKit] Power ON — restoring brightness to {self._last_brightness}')
-            brightness_manager.set_brightness(self._last_brightness)
+            brightness_manager.power_on(self._last_brightness)
         else:
             self._last_brightness = brightness_manager.get_brightness()
-            print(f'[HomeKit] Power OFF — saving brightness {self._last_brightness}, dimming to 0')
-            brightness_manager.set_brightness(0)
+            print(f'[HomeKit] Power OFF — clearing matrix')
+            brightness_manager.power_off()
 
     def set_brightness(self, value):
         import brightness_manager

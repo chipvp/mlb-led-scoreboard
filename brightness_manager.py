@@ -2,6 +2,7 @@ from pathlib import Path
 
 _STATE_FILE = Path(__file__).parent / ".brightness_state"
 _matrix_ref = None
+_is_off = False
 
 
 def _load_brightness():
@@ -33,10 +34,28 @@ def get_brightness():
     return _brightness
 
 
+def is_off():
+    return _is_off
+
+
+def power_off():
+    global _is_off
+    _is_off = True
+    if _matrix_ref:
+        _matrix_ref.Clear()
+
+
+def power_on(brightness):
+    global _is_off
+    _is_off = False
+    if _matrix_ref:
+        _matrix_ref.brightness = brightness
+
+
 def set_brightness(value):
     global _brightness
     _brightness = value
     _save_brightness(value)
     print(f'[brightness_manager] set_brightness({value})')
-    if _matrix_ref:
+    if _matrix_ref and not _is_off:
         _matrix_ref.brightness = value

@@ -2,6 +2,7 @@ import time
 from typing import Callable, NoReturn
 from data.screens import ScreenType
 
+import brightness_manager
 import debug
 from data import Data, status
 from data.scoreboard import Scoreboard
@@ -173,7 +174,7 @@ class MainRenderer:
         if self.data.network_issues:
             network.render_network_error(self.canvas, layout, colors)
 
-        self.canvas = self.matrix.SwapOnVSync(self.canvas)
+        self.canvas = self.__swap()
 
     def __draw_news(self, cond: Callable[[], bool]):
         """
@@ -200,7 +201,7 @@ class MainRenderer:
             # Show network issues
             if self.data.network_issues:
                 network.render_network_error(self.canvas, self.data.config.layout, self.data.config.scoreboard_colors)
-            self.canvas = self.matrix.SwapOnVSync(self.canvas)
+            self.canvas = self.__swap()
             time.sleep(self.data.config.scrolling_speed)
 
     def __draw_standings(self, cond: Callable[[], bool]):
@@ -234,7 +235,7 @@ class MainRenderer:
             if self.data.network_issues:
                 network.render_network_error(self.canvas, self.data.config.layout, self.data.config.scoreboard_colors)
 
-            self.canvas = self.matrix.SwapOnVSync(self.canvas)
+            self.canvas = self.__swap()
 
             if self.data.standings.is_postseason():
                 if update % 20 == 0:
@@ -253,6 +254,12 @@ class MainRenderer:
 
             time.sleep(1)
             update = (update + 1) % 100
+
+    def __swap(self):
+        """Swap the canvas, or fill black and skip if the board is powered off."""
+        if brightness_manager.is_off():
+            self.canvas.Fill(0, 0, 0)
+        return self.matrix.SwapOnVSync(self.canvas)
 
     def __max_scroll_x(self, scroll_coords):
         scroll_max_x = scroll_coords["x"] + scroll_coords["width"]
