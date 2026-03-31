@@ -30,6 +30,18 @@ def render_linescore(canvas, layout, colors, scoreboard):
         for row in range(bg["height"]):
             graphics.DrawLine(canvas, bg["x"], bg["y"] + row, bg["x"] + bg["width"], bg["y"] + row, bg_color)
 
+    # Draw vertical dividers
+    dividers = coords.get("dividers", [])
+    if dividers:
+        font_height = font["size"]["height"]
+        div_y_start = coords["away"]["y"] - font_height + 1
+        div_y_end = coords["home"]["y"]
+        for div in dividers:
+            dx = div["x"]
+            graphics.DrawLine(canvas, dx, div_y_start, dx, div_y_end, header_color)
+            if div.get("double"):
+                graphics.DrawLine(canvas, dx + 1, div_y_start, dx + 1, div_y_end, header_color)
+
     # Optional inning-number header row
     header = coords.get("header")
     if header and "y" in header:

@@ -351,6 +351,7 @@
     "innings_start_x": 14,
     "total_x": 60,
     "background": {"x": 0, "y": 14, "width": 63, "height": 17},
+    "dividers": [{"x": 13}, {"x": 58, "double": true}],
     "away": {"y": 20},
     "home": {"y": 26}
   },
