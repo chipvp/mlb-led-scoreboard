@@ -27,9 +27,8 @@ def render_linescore(canvas, layout, colors, scoreboard):
     # Draw green background over the linescore area
     bg = coords.get("background")
     if bg:
-        c = graphics.Color(bg_color["r"], bg_color["g"], bg_color["b"])
         for row in range(bg["height"]):
-            graphics.DrawLine(canvas, bg["x"], bg["y"] + row, bg["x"] + bg["width"], bg["y"] + row, c)
+            graphics.DrawLine(canvas, bg["x"], bg["y"] + row, bg["x"] + bg["width"], bg["y"] + row, bg_color)
 
     # Optional inning-number header row
     header = coords.get("header")
