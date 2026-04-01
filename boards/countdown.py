@@ -40,7 +40,7 @@ class CountdownBoard(Board):
         )
         if not active:
             return
-        per_event = max(duration // len(active), 5)
+        per_event = self.item_duration if self.item_duration is not None else max(duration // len(active), 5)
         for label, days in active:
             self._show_event(label, days, per_event)
 

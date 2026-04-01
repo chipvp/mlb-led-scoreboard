@@ -9,7 +9,7 @@ class ScoresBoard(Board):
         games = self.data.schedule.all_games
         if not games:
             return
-        per_game = max(duration // len(games), 3)
+        per_game = self.item_duration if self.item_duration is not None else max(duration // len(games), 3)
         for scheduled_game in games:
             game = Game.from_scheduled(
                 scheduled_game,

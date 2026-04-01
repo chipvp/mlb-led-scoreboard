@@ -29,4 +29,7 @@ def run_boards(renderer, board_names, rotation_rate):
         if cls is None:
             debug.warning("Unknown board type: '%s' — skipping", name)
             continue
-        cls(renderer).render(duration)
+        board = cls(renderer)
+        if isinstance(entry, dict) and "item_duration" in entry:
+            board.item_duration = entry["item_duration"]
+        board.render(duration)
