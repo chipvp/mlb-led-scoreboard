@@ -8,14 +8,22 @@ from renderers import scrollingtext
 
 
 def _resolve_date(date_str):
-    """Parse YYYY-MM-DD (one-time) or MM-DD (annual, auto-advances year)."""
+    """Parse dates in several formats:
+    - MM-DD         annual, auto-advances to next year if past
+    - MM-DD-YY      one-time, 2-digit year (20YY)
+    - YYYY-MM-DD    one-time, full ISO format
+    """
     today = date.today()
-    if len(date_str) == 5:  # MM-DD
-        month, day = int(date_str[:2]), int(date_str[3:])
+    parts = date_str.split("-")
+    if len(parts) == 2:  # MM-DD
+        month, day = int(parts[0]), int(parts[1])
         candidate = date(today.year, month, day)
         if candidate < today:
             candidate = date(today.year + 1, month, day)
         return candidate
+    if len(parts) == 3 and len(parts[0]) == 2:  # MM-DD-YY
+        month, day, year = int(parts[0]), int(parts[1]), 2000 + int(parts[2])
+        return date(year, month, day)
     return date.fromisoformat(date_str)  # YYYY-MM-DD
 
 
