@@ -8,10 +8,9 @@ class WeatherBoard(Board):
     def render(self, duration):
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
-        end = time.time() + duration
         text_pos = self.renderer.canvas.width
 
-        while time.time() < end:
+        while True:
             bgcolor = colors.color("default.background")
             self.renderer.canvas.Fill(bgcolor["r"], bgcolor["g"], bgcolor["b"])
 
@@ -27,7 +26,7 @@ class WeatherBoard(Board):
 
             text_pos -= 1
             if text_pos + total_width < -10:
-                text_pos = self.renderer.canvas.width
+                break
 
             self.renderer.swap_canvas()
             time.sleep(self.data.config.scrolling_speed)

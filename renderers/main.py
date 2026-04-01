@@ -30,6 +30,7 @@ class MainRenderer:
         self.standings_stat = "w"
         self.standings_league = "NL"
         self._inning_break_boards_shown = None
+        self._suppress_boards = False
 
     def render(self):
         screen = self.data.get_screen_type()
@@ -55,14 +56,14 @@ class MainRenderer:
         run_boards(self, board_names, self.data.config.boards_rotation_rate)
 
     def draw_game(self, game):
-        """Draw one frame of the given game. Used by ScoresBoard to reuse the main rendering pipeline."""
+        """Draw one frame of the given game. Used by ScoresBoard to reuse the main rendering pipeline.
+        Returns True when the scrolling text has completed one full pass."""
         self.data.current_game = game
-        # Suppress boards-within-boards: treat scrolling as finished so pregame/postgame
-        # sub-boards don't trigger while we're already inside a board rotation.
-        saved = self.data.scrolling_finished
-        self.data.scrolling_finished = True
+        self._suppress_boards = True
         self.__draw_game()
-        self.data.scrolling_finished = saved
+        done = self.data.scrolling_finished
+        self._suppress_boards = False
+        return done
 
     def __render_offday(self, team_offday=True) -> NoReturn:
         if self.data.config.boards_offday:
@@ -129,7 +130,7 @@ class MainRenderer:
         colors = self.data.config.scoreboard_colors
 
         if status.is_pregame(game.status()):  # Draw the pregame information
-            if self.data.config.boards_pregame and not self.data.scrolling_finished:
+            if self.data.config.boards_pregame and not self.data.scrolling_finished and not self._suppress_boards:
                 self.run_boards(self.data.config.boards_pregame)
                 return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
@@ -146,7 +147,7 @@ class MainRenderer:
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
-            if self.data.config.boards_postgame and not self.data.scrolling_finished:
+            if self.data.config.boards_postgame and not self.data.scrolling_finished and not self._suppress_boards:
                 self.run_boards(self.data.config.boards_postgame)
                 return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
@@ -176,7 +177,7 @@ class MainRenderer:
 
             inning_key = (scoreboard.inning.number, scoreboard.inning.state)
             if status.is_inning_break(scoreboard.inning.state):
-                if self.data.config.boards_inning_break and self._inning_break_boards_shown != inning_key:
+                if self.data.config.boards_inning_break and self._inning_break_boards_shown != inning_key and not self._suppress_boards:
                     self._inning_break_boards_shown = inning_key
                     self.run_boards(self.data.config.boards_inning_break)
                 loop_point = self.data.config.layout.coords("inning.break.due_up")["loop"]
