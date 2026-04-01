@@ -51,5 +51,12 @@
 	"pregame_weather": true,
 	"scrolling_speed": 2,
 	"debug": false,
-	"demo_date": false
+	"demo_date": false,
+	"boards": {
+		"offday": ["clock", "weather", "standings", "news"],
+		"pregame": [],
+		"postgame": [],
+		"inning_break": [],
+		"rotation_rate": 30
+	}
 }

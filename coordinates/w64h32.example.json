@@ -350,9 +350,18 @@
     "team_abbrev_x": 1,
     "innings_start_x": 14,
     "total_x": 60,
-    "background": {"x": 0, "y": 14, "width": 63, "height": 17},
-    "away": {"y": 20},
-    "home": {"y": 26}
+    "background": {
+      "x": 0,
+      "y": 14,
+      "width": 63,
+      "height": 17
+    },
+    "away": {
+      "y": 20
+    },
+    "home": {
+      "y": 26
+    }
   },
   "network": {
     "font_name": "4x6",
@@ -365,6 +374,18 @@
     "text": {
       "x": 61,
       "y": 31
+    }
+  },
+  "clock": {
+    "time": {
+      "x": 0,
+      "y": 12,
+      "font_name": "4x6"
+    },
+    "date": {
+      "x": 0,
+      "y": 22,
+      "font_name": "4x6"
     }
   }
 }

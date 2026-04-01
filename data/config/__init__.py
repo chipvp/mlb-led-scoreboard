@@ -76,6 +76,14 @@ class Config:
 
         self.debug = json["debug"]
         self.demo_date = json["demo_date"]
+
+        # Boards system
+        boards_config = json.get("boards", {})
+        self.boards_offday = boards_config.get("offday", [])
+        self.boards_pregame = boards_config.get("pregame", [])
+        self.boards_postgame = boards_config.get("postgame", [])
+        self.boards_inning_break = boards_config.get("inning_break", [])
+        self.boards_rotation_rate = boards_config.get("rotation_rate", 30)
         # Make sure the scrolling speed setting is in range so we don't crash
         try:
             self.scrolling_speed = SCROLLING_SPEEDS[json["scrolling_speed"]]

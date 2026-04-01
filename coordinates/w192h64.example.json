@@ -366,5 +366,17 @@
   },
   "linescore": {
     "enabled": false
+  },
+  "clock": {
+    "time": {
+      "x": 0,
+      "y": 22,
+      "font_name": "6x10"
+    },
+    "date": {
+      "x": 0,
+      "y": 36,
+      "font_name": "4x6"
+    }
   }
 }

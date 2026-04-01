@@ -370,5 +370,17 @@
   },
   "linescore": {
     "enabled": false
+  },
+  "clock": {
+    "time": {
+      "x": 0,
+      "y": 12,
+      "font_name": "tom-thumb"
+    },
+    "date": {
+      "x": 0,
+      "y": 22,
+      "font_name": "tom-thumb"
+    }
   }
 }
