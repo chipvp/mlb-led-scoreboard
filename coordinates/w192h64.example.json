@@ -369,24 +369,24 @@
   },
   "clock": {
     "time": {
-      "x": 0,
+      "x": 96,
       "y": 22,
       "font_name": "6x10"
     },
     "date": {
-      "x": 0,
+      "x": 96,
       "y": 36,
       "font_name": "4x6"
     }
   },
   "countdown": {
     "number": {
-      "x": 0,
+      "x": 96,
       "y": 22,
       "font_name": "10x20"
     },
     "label": {
-      "x": 0,
+      "x": 96,
       "y": 38,
       "font_name": "6x10"
     },

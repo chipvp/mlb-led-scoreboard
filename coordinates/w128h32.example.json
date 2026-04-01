@@ -409,24 +409,24 @@
   },
   "clock": {
     "time": {
-      "x": 0,
-      "y": 12,
-      "font_name": "4x6"
+      "x": 64,
+      "y": 19,
+      "font_name": "9x15B"
     },
     "date": {
-      "x": 0,
-      "y": 22,
+      "x": 64,
+      "y": 28,
       "font_name": "4x6"
     }
   },
   "countdown": {
     "number": {
-      "x": 0,
-      "y": 13,
+      "x": 64,
+      "y": 15,
       "font_name": "9x15B"
     },
     "label": {
-      "x": 0,
+      "x": 64,
       "y": 23,
       "font_name": "4x6"
     },

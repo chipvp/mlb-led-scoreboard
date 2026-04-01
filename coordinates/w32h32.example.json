@@ -373,24 +373,24 @@
   },
   "clock": {
     "time": {
-      "x": 0,
+      "x": 16,
       "y": 12,
       "font_name": "tom-thumb"
     },
     "date": {
-      "x": 0,
+      "x": 16,
       "y": 22,
       "font_name": "tom-thumb"
     }
   },
   "countdown": {
     "number": {
-      "x": 0,
+      "x": 16,
       "y": 13,
       "font_name": "7x13B"
     },
     "label": {
-      "x": 0,
+      "x": 16,
       "y": 22,
       "font_name": "tom-thumb"
     },
