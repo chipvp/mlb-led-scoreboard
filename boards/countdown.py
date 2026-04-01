@@ -22,11 +22,14 @@ def _resolve_date(date_str):
 class CountdownBoard(Board):
     def render(self, duration):
         today = date.today()
-        active = [
-            (e["label"], (_resolve_date(e["date"]) - today).days)
-            for e in self.data.config.countdown_events
-            if (_resolve_date(e["date"]) - today).days >= 0
-        ]
+        active = sorted(
+            [
+                (e["label"], (_resolve_date(e["date"]) - today).days)
+                for e in self.data.config.countdown_events
+                if (_resolve_date(e["date"]) - today).days >= 0
+            ],
+            key=lambda x: x[1],
+        )
         if not active:
             return
         per_event = max(duration // len(active), 5)
