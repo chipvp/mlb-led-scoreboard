@@ -149,7 +149,7 @@ class CountdownBoard(Board):
             )
             text_pos -= 1
             if text_pos + total_width < -10:
-                break
+                text_pos = self.renderer.canvas.width
 
             self.renderer.swap_canvas()
             time.sleep(self.data.config.scrolling_speed)
