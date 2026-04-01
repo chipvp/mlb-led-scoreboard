@@ -18,9 +18,15 @@ def run_boards(renderer, board_names, rotation_rate):
         "scores": ScoresBoard,
     }
 
-    for name in board_names:
+    for entry in board_names:
+        if isinstance(entry, dict):
+            name = entry.get("name")
+            duration = entry.get("duration", rotation_rate)
+        else:
+            name = entry
+            duration = rotation_rate
         cls = board_registry.get(name)
         if cls is None:
             debug.warning("Unknown board type: '%s' — skipping", name)
             continue
-        cls(renderer).render(rotation_rate)
+        cls(renderer).render(duration)
