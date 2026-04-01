@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import date
 
@@ -5,6 +6,82 @@ from driver import graphics
 from utils import center_text_position
 from boards.base import Board
 from renderers import scrollingtext
+
+_NAMED_COLORS = {
+    "red":     (220,  50,  50),
+    "green":   (  0, 200, 100),
+    "blue":    ( 50, 100, 255),
+    "yellow":  (255, 220,  50),
+    "orange":  (255, 165,   0),
+    "pink":    (255, 105, 180),
+    "purple":  (180, 100, 255),
+    "cyan":    (  0, 220, 220),
+    "magenta": (220,   0, 220),
+    "white":   (255, 255, 255),
+}
+
+
+def _parse_segments(label, default_color):
+    """Parse a Rich-style tagged label into a list of (text, Color) segments.
+
+    Supported tag formats:
+      [red]   — named color (see _NAMED_COLORS)
+      [#rrggbb] — hex color
+      [/]     — close tag, resets to default_color
+
+    Example:
+      "[red]Milo's[/] [white]Bday[/]"  →  [("Milo's", red), (" ", default), ("Bday", white)]
+    """
+    segments = []
+    current = default_color
+    for part in re.split(r'(\[[^\]]*\])', label):
+        if part.startswith('[') and part.endswith(']'):
+            tag = part[1:-1].strip()
+            if tag.startswith('/'):
+                current = default_color
+            elif tag.startswith('#') and len(tag) == 7:
+                h = tag[1:]
+                current = graphics.Color(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+            elif tag.lower() in _NAMED_COLORS:
+                r, g, b = _NAMED_COLORS[tag.lower()]
+                current = graphics.Color(r, g, b)
+        elif part:
+            segments.append((part, current))
+    return segments or [('', default_color)]
+
+
+def _render_scrolling_segments(canvas, x, y, width, font, bg_color, segments, scroll_pos):
+    """Render a list of (text, Color) segments with horizontal scrolling.
+
+    Works like scrollingtext.render_text but supports per-segment colors.
+    Returns total pixel width of the text (for scroll position tracking), or 0 if static.
+    """
+    w = font["size"]["width"]
+    full_text = ''.join(t for t, _ in segments)
+    total_width = w * len(full_text)
+
+    if total_width <= width:
+        # Text fits — center it
+        draw_x = center_text_position(full_text, abs(width // 2) + x, w)
+        for text, color in segments:
+            graphics.DrawText(canvas, font["font"], draw_x, y, color, text)
+            draw_x += len(text) * w
+        return 0
+
+    # Draw each segment at its scroll-offset position
+    cur_x = scroll_pos
+    for text, color in segments:
+        graphics.DrawText(canvas, font["font"], cur_x, y, color, text)
+        cur_x += len(text) * w
+
+    # Mask edges with bg_color lines so text clips cleanly
+    top = y + 1
+    bottom = top - font["size"]["height"]
+    for xi in range(0, w):
+        graphics.DrawLine(canvas, x - xi - 1, top, x - xi - 1, bottom, bg_color)
+        graphics.DrawLine(canvas, x + width + xi, top, x + width + xi, bottom, bg_color)
+
+    return total_width
 
 
 def _resolve_date(date_str):
@@ -49,33 +126,36 @@ class CountdownBoard(Board):
         colors = self.data.config.scoreboard_colors
         end = time.time() + duration
         text_pos = self.renderer.canvas.width
+        default_color = colors.graphics_color("countdown.event")
+        bg_color = colors.graphics_color("default.background")
+        segments = _parse_segments(label, default_color)
 
         while time.time() < end:
             bgcolor = colors.color("default.background")
             self.renderer.canvas.Fill(bgcolor["r"], bgcolor["g"], bgcolor["b"])
 
             if days == 0:
-                self._draw_centered(layout, colors, "TODAY!", "countdown.number", "countdown.number")
+                self._draw_centered(layout, "TODAY!", "countdown.number", colors.graphics_color("countdown.number"))
             else:
-                self._draw_centered(layout, colors, str(days), "countdown.number", "countdown.number")
-                self._draw_centered(layout, colors, "DAYS UNTIL", "countdown.label", "countdown.label")
+                self._draw_centered(layout, str(days), "countdown.number", colors.graphics_color("countdown.number"))
+                self._draw_centered(layout, "DAYS UNTIL", "countdown.label", colors.graphics_color("countdown.label"))
 
             coords = layout.coords("countdown.event")
             font = layout.font("countdown.event")
-            color = colors.graphics_color("countdown.event")
-            bgcolor_g = colors.graphics_color("default.background")
-            text_pos = scrollingtext.render_text(
+            total_width = _render_scrolling_segments(
                 self.renderer.canvas,
                 coords["x"], coords["y"], coords["width"],
-                font, color, bgcolor_g, label, text_pos,
+                font, bg_color, segments, text_pos,
             )
+            text_pos -= 1
+            if text_pos + total_width < -10:
+                break
 
             self.renderer.swap_canvas()
             time.sleep(self.data.config.scrolling_speed)
 
-    def _draw_centered(self, layout, colors, text, coord_key, color_key):
+    def _draw_centered(self, layout, text, coord_key, color):
         coords = layout.coords(coord_key)
         font = layout.font(coord_key)
-        color = colors.graphics_color(color_key)
         x = center_text_position(text, coords["x"], font["size"]["width"])
         graphics.DrawText(self.renderer.canvas, font["font"], x, coords["y"], color, text)
