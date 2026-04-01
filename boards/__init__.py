@@ -3,12 +3,14 @@ import debug
 
 def run_boards(renderer, board_names, rotation_rate):
     from boards.clock import ClockBoard
+    from boards.countdown import CountdownBoard
     from boards.news import NewsBoard
     from boards.standings import StandingsBoard
     from boards.weather import WeatherBoard
 
     board_registry = {
         "clock": ClockBoard,
+        "countdown": CountdownBoard,
         "weather": WeatherBoard,
         "standings": StandingsBoard,
         "news": NewsBoard,

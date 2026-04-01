@@ -382,5 +382,23 @@
       "y": 22,
       "font_name": "tom-thumb"
     }
+  },
+  "countdown": {
+    "number": {
+      "x": 0,
+      "y": 13,
+      "font_name": "7x13B"
+    },
+    "label": {
+      "x": 0,
+      "y": 22,
+      "font_name": "tom-thumb"
+    },
+    "event": {
+      "x": 0,
+      "y": 30,
+      "width": 32,
+      "font_name": "tom-thumb"
+    }
   }
 }

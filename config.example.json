@@ -52,6 +52,10 @@
 	"scrolling_speed": 2,
 	"debug": false,
 	"demo_date": false,
+	"countdown_events": [
+		{ "label": "4th of July",  "date": "07-04" },
+		{ "label": "Christmas",    "date": "12-25" }
+	],
 	"boards": {
 		"offday": ["clock", "weather", "standings", "news"],
 		"pregame": [],

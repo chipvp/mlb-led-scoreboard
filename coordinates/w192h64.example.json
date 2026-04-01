@@ -378,5 +378,23 @@
       "y": 36,
       "font_name": "4x6"
     }
+  },
+  "countdown": {
+    "number": {
+      "x": 0,
+      "y": 22,
+      "font_name": "10x20"
+    },
+    "label": {
+      "x": 0,
+      "y": 38,
+      "font_name": "6x10"
+    },
+    "event": {
+      "x": 0,
+      "y": 52,
+      "width": 192,
+      "font_name": "6x10"
+    }
   }
 }
