@@ -54,6 +54,16 @@ class MainRenderer:
         from boards import run_boards
         run_boards(self, board_names, self.data.config.boards_rotation_rate)
 
+    def draw_game(self, game):
+        """Draw one frame of the given game. Used by ScoresBoard to reuse the main rendering pipeline."""
+        self.data.current_game = game
+        # Suppress boards-within-boards: treat scrolling as finished so pregame/postgame
+        # sub-boards don't trigger while we're already inside a board rotation.
+        saved = self.data.scrolling_finished
+        self.data.scrolling_finished = True
+        self.__draw_game()
+        self.data.scrolling_finished = saved
+
     def __render_offday(self, team_offday=True) -> NoReturn:
         if self.data.config.boards_offday:
             self.run_boards(self.data.config.boards_offday)
