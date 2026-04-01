@@ -72,7 +72,7 @@ def args():
         "--led-slowdown-gpio",
         action="store",
         help="Slow down writing to GPIO. Range: 0..4. (Default: 1)",
-        choices=range(5),
+        choices=range(6),
         type=int,
     )
     parser.add_argument("--led-no-hardware-pulse", action="store", help="Don't use hardware pin-pulse generation.")
