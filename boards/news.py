@@ -21,7 +21,7 @@ class NewsBoard(Board):
             self.renderer.canvas.Fill(bg["r"], bg["g"], bg["b"])
 
             ticker_text = self.data.headlines.ticker_string()
-            text_pos = scrollingtext.render_text(
+            total_width = scrollingtext.render_text(
                 self.renderer.canvas,
                 coords["x"],
                 coords["y"],
@@ -32,6 +32,10 @@ class NewsBoard(Board):
                 ticker_text,
                 text_pos,
             )
+
+            text_pos -= 1
+            if text_pos + total_width < -10:
+                text_pos = self.renderer.canvas.width
 
             self.renderer.swap_canvas()
             time.sleep(self.data.config.scrolling_speed)

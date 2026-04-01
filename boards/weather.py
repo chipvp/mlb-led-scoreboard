@@ -15,7 +15,7 @@ class WeatherBoard(Board):
             bgcolor = colors.color("default.background")
             self.renderer.canvas.Fill(bgcolor["r"], bgcolor["g"], bgcolor["b"])
 
-            text_pos = offday.render_offday_screen(
+            total_width = offday.render_offday_screen(
                 self.renderer.canvas,
                 layout,
                 colors,
@@ -24,6 +24,10 @@ class WeatherBoard(Board):
                 self.data.config.time_format,
                 text_pos,
             )
+
+            text_pos -= 1
+            if text_pos + total_width < -10:
+                text_pos = self.renderer.canvas.width
 
             self.renderer.swap_canvas()
             time.sleep(self.data.config.scrolling_speed)
