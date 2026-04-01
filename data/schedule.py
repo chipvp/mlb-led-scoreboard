@@ -72,6 +72,10 @@ class Schedule:
     def is_offday(self):
         return not len(self.__all_games)  # care about all MLB
 
+    @property
+    def all_games(self):
+        return self.__all_games
+
     def games_live(self):
         return any(status.is_fresh(g["status"]) or (status.is_live(g["status"])) for g in self._games)
 
