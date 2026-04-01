@@ -9,6 +9,25 @@ class ScoresBoard(Board):
         games = self.data.schedule.all_games
         if not games:
             return
+
+        # Save renderer state so live game display is unaffected after we finish
+        saved = (
+            self.data.current_game,
+            self.renderer.scrolling_text_pos,
+            self.data.scrolling_finished,
+            self.renderer.animation_time,
+        )
+        try:
+            self._render_scores(duration, games)
+        finally:
+            (
+                self.data.current_game,
+                self.renderer.scrolling_text_pos,
+                self.data.scrolling_finished,
+                self.renderer.animation_time,
+            ) = saved
+
+    def _render_scores(self, duration, games):
         per_game = self.item_duration if self.item_duration is not None else max(duration // len(games), 3)
         for scheduled_game in games:
             game = Game.from_scheduled(
