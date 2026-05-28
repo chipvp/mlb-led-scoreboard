@@ -29,9 +29,6 @@ class MainRenderer:
         self.animation_time = 0
         self.standings_stat = "w"
         self.standings_league = "NL"
-        self._inning_break_boards_shown = None
-        self._suppress_boards = False
-
     def render(self):
         screen = self.data.get_screen_type()
         # display the news ticker
@@ -41,9 +38,9 @@ class MainRenderer:
         elif screen == ScreenType.ALWAYS_STANDINGS:
             self.__render_standings()
         elif screen == ScreenType.LEAGUE_OFFDAY:
-            self.__render_offday(team_offday=False)
+            self.__render_offday()
         elif screen == ScreenType.PREFERRED_TEAM_OFFDAY:
-            self.__render_offday(team_offday=True)
+            self.__render_offday()
         # Playball!
         else:
             self.__render_gameday()
@@ -55,37 +52,8 @@ class MainRenderer:
         from boards import run_boards
         run_boards(self, board_names, self.data.config.boards_rotation_rate)
 
-    def draw_game(self, game):
-        """Draw one frame of the given game. Used by ScoresBoard to reuse the main rendering pipeline.
-        Returns True when the scrolling text has completed one full pass."""
-        self.data.current_game = game
-        self._suppress_boards = True
-        self.__draw_game()
-        done = self.data.scrolling_finished
-        self._suppress_boards = False
-        return done
-
-    def __render_offday(self, team_offday=True) -> NoReturn:
-        if self.data.config.boards_offday:
-            self.run_boards(self.data.config.boards_offday)
-            return
-        if team_offday:
-            news = self.data.config.news_ticker_team_offday
-            standings = self.data.config.standings_team_offday
-        else:
-            news = True
-            standings = self.data.config.standings_mlb_offday
-
-        switch_time = self.data.config.standings_news_rotation_rate
-
-        if news and standings:
-            while True:
-                self.__draw_news(timer_cond(switch_time))
-                self.__draw_standings(timer_cond(switch_time))
-        elif news:
-            self.__draw_news(permanent_cond)
-        else:
-            self.__render_standings()
+    def __render_offday(self) -> NoReturn:
+        self.run_boards(self.data.config.boards_offday)
 
     def __render_standings(self) -> NoReturn:
         self.__draw_standings(permanent_cond)
@@ -130,9 +98,6 @@ class MainRenderer:
         colors = self.data.config.scoreboard_colors
 
         if status.is_pregame(game.status()):  # Draw the pregame information
-            if self.data.config.boards_pregame and not self.data.scrolling_finished and not self._suppress_boards:
-                self.run_boards(self.data.config.boards_pregame)
-                return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
             pos = pregamerender.render_pregame(
@@ -147,9 +112,6 @@ class MainRenderer:
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
-            if self.data.config.boards_postgame and not self.data.scrolling_finished and not self._suppress_boards:
-                self.run_boards(self.data.config.boards_postgame)
-                return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
             pos = postgamerender.render_postgame(
@@ -175,14 +137,9 @@ class MainRenderer:
             else:
                 self.animation_time = 0
 
-            inning_key = (scoreboard.inning.number, scoreboard.inning.state)
             if status.is_inning_break(scoreboard.inning.state):
-                if self.data.config.boards_inning_break and self._inning_break_boards_shown != inning_key and not self._suppress_boards:
-                    self._inning_break_boards_shown = inning_key
-                    self.run_boards(self.data.config.boards_inning_break)
                 loop_point = self.data.config.layout.coords("inning.break.due_up")["loop"]
             else:
-                self._inning_break_boards_shown = None
                 loop_point = self.data.config.layout.coords("atbat")["loop"]
 
             self.scrolling_text_pos = min(self.scrolling_text_pos, loop_point)

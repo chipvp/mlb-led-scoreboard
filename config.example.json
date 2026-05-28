@@ -58,9 +58,6 @@
 	],
 	"boards": {
 		"offday": ["clock", "weather", "standings", "news"],
-		"pregame": [],
-		"postgame": [],
-		"inning_break": [],
 		"rotation_rate": 30
 	}
 }
