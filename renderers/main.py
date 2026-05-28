@@ -55,7 +55,8 @@ class MainRenderer:
         run_boards(self, board_names, self.data.config.boards_rotation_rate)
 
     def __render_offday(self) -> NoReturn:
-        self.run_boards(self.data.config.boards_offday)
+        while True:
+            self.run_boards(self.data.config.boards_offday)
 
     def __render_standings(self) -> NoReturn:
         self.__draw_standings(permanent_cond)
@@ -102,6 +103,7 @@ class MainRenderer:
         if status.is_pregame(game.status()):  # Draw the pregame information
             if self.data.config.boards_no_preferred_playing and not self.data.scrolling_finished:
                 self.run_boards(self.data.config.boards_no_preferred_playing)
+                self.data.scrolling_finished = True
                 return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
@@ -119,6 +121,7 @@ class MainRenderer:
         elif status.is_complete(game.status()):  # Draw the game summary
             if self.data.config.boards_no_preferred_playing and not self.data.scrolling_finished:
                 self.run_boards(self.data.config.boards_no_preferred_playing)
+                self.data.scrolling_finished = True
                 return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
