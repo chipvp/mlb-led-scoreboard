@@ -100,8 +100,8 @@ class MainRenderer:
         colors = self.data.config.scoreboard_colors
 
         if status.is_pregame(game.status()):  # Draw the pregame information
-            if self.data.config.boards_offday and not self.data.scrolling_finished:
-                self.run_boards(self.data.config.boards_offday)
+            if self.data.config.boards_no_preferred_playing and not self.data.scrolling_finished:
+                self.run_boards(self.data.config.boards_no_preferred_playing)
                 return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
@@ -117,8 +117,8 @@ class MainRenderer:
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
-            if self.data.config.boards_offday and not self.data.scrolling_finished:
-                self.run_boards(self.data.config.boards_offday)
+            if self.data.config.boards_no_preferred_playing and not self.data.scrolling_finished:
+                self.run_boards(self.data.config.boards_no_preferred_playing)
                 return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
@@ -147,9 +147,9 @@ class MainRenderer:
 
             inning_key = (scoreboard.inning.number, scoreboard.inning.state)
             if status.is_inning_break(scoreboard.inning.state):
-                if self.data.config.boards_offday and self._inning_break_boards_shown != inning_key:
+                if self.data.config.boards_inning_break and self._inning_break_boards_shown != inning_key:
                     self._inning_break_boards_shown = inning_key
-                    self.run_boards(self.data.config.boards_offday)
+                    self.run_boards(self.data.config.boards_inning_break)
                 loop_point = self.data.config.layout.coords("inning.break.due_up")["loop"]
             else:
                 self._inning_break_boards_shown = None

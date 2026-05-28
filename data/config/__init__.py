@@ -80,6 +80,8 @@ class Config:
         # Boards system
         boards_config = json.get("boards", {})
         self.boards_offday = boards_config.get("offday", [])
+        self.boards_no_preferred_playing = boards_config.get("no_preferred_playing", [])
+        self.boards_inning_break = boards_config.get("inning_break", [])
         self.boards_rotation_rate = boards_config.get("rotation_rate", 30)
         self.countdown_events = json.get("countdown_events", [])
         # Make sure the scrolling speed setting is in range so we don't crash

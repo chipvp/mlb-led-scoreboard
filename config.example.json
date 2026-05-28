@@ -57,7 +57,9 @@
 		{ "label": "Christmas",    "date": "12-25" }
 	],
 	"boards": {
-		"offday": ["clock", "weather", "standings", "news"],
+		"offday": ["clock", "countdown", "weather", "standings"],
+		"no_preferred_playing": ["clock", "countdown", "weather", "scores", "standings"],
+		"inning_break": [{"name": "scores", "item_duration": 5}],
 		"rotation_rate": 30
 	}
 }
