@@ -30,6 +30,7 @@ class MainRenderer:
         self.standings_stat = "w"
         self.standings_league = "NL"
         self._inning_break_boards_shown = None
+        self._boards_shown_game_state = None
 
     def render(self):
         screen = self.data.get_screen_type()
@@ -101,9 +102,10 @@ class MainRenderer:
         colors = self.data.config.scoreboard_colors
 
         if status.is_pregame(game.status()):  # Draw the pregame information
-            if self.data.config.boards_no_preferred_playing and not self.data.scrolling_finished:
+            game_key = (game.game_id, "pregame")
+            if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
+                self._boards_shown_game_state = game_key
                 self.run_boards(self.data.config.boards_no_preferred_playing)
-                self.data.scrolling_finished = True
                 return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
@@ -119,9 +121,10 @@ class MainRenderer:
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
-            if self.data.config.boards_no_preferred_playing and not self.data.scrolling_finished:
+            game_key = (game.game_id, "postgame")
+            if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
+                self._boards_shown_game_state = game_key
                 self.run_boards(self.data.config.boards_no_preferred_playing)
-                self.data.scrolling_finished = True
                 return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
