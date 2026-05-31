@@ -5,7 +5,6 @@ def run_boards(renderer, board_names, rotation_rate):
     from boards.clock import ClockBoard
     from boards.countdown import CountdownBoard
     from boards.news import NewsBoard
-    from boards.scores import ScoresBoard
     from boards.standings import StandingsBoard
     from boards.weather import WeatherBoard
 
@@ -15,7 +14,6 @@ def run_boards(renderer, board_names, rotation_rate):
         "weather": WeatherBoard,
         "standings": StandingsBoard,
         "news": NewsBoard,
-        "scores": ScoresBoard,
     }
 
     for entry in board_names:
