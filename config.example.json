@@ -12,7 +12,7 @@
 		"mlb_news": true,
 		"countdowns": true,
 		"date": true,
-		"date_format": "%A, %B %-d"
+		"date_format": "%a, %B %-d"
 	},
 	"standings": {
 		"team_offday": false,
@@ -51,5 +51,15 @@
 	"pregame_weather": true,
 	"scrolling_speed": 2,
 	"debug": false,
-	"demo_date": false
+	"demo_date": false,
+	"countdown_events": [
+		{ "label": "4th of July",  "date": "07-04" },
+		{ "label": "Christmas",    "date": "12-25" }
+	],
+	"boards": {
+		"offday": ["clock", "countdown", "weather", "standings"],
+		"no_preferred_playing": ["clock", "countdown", "weather", "scores", "standings"],
+		"inning_break": [{"name": "scores", "item_duration": 5}],
+		"rotation_rate": 30
+	}
 }

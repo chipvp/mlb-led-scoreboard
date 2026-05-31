@@ -72,6 +72,10 @@ class Schedule:
     def is_offday(self):
         return not len(self.__all_games)  # care about all MLB
 
+    @property
+    def all_games(self):
+        return self.__all_games
+
     def games_live(self):
         return any(status.is_fresh(g["status"]) or (status.is_live(g["status"])) for g in self._games)
 
@@ -119,6 +123,12 @@ class Schedule:
         if not self.config.preferred_teams:
             return -1  # no preferred team
 
+        # Prefer a live preferred team game if one exists
+        live_indices = self.get_live_preferred_game_indices()
+        if live_indices:
+            return live_indices[0]
+
+        # Fall back to first preferred team's scheduled game
         team_id = data.teams.get_team_id(self.config.preferred_teams[0])
         return next(
             (
@@ -126,7 +136,7 @@ class Schedule:
                 for i, game in enumerate(self._games)
                 if team_id in (game["away_id"], game["home_id"])
             ),
-            -1, # no preferred team game
+            -1,  # no preferred team game
         )
 
     def get_live_preferred_game_indices(self):

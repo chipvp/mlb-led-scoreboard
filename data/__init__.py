@@ -61,7 +61,7 @@ class Data:
                 return False
 
             # if we're here, it means we should pause on the preferred team's games
-            if game.features_team(self.config.preferred_teams[0]):
+            if any(game.features_team(t) for t in self.config.preferred_teams):
                 # unless we're allowed to rotate during mid-inning breaks
                 return self.config.rotation_preferred_team_live_mid_inning and status.is_inning_break(game.inning_state())
 

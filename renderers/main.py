@@ -3,6 +3,7 @@ from typing import Callable, NoReturn
 from data.screens import ScreenType
 
 import brightness_manager
+import spoiler_mode_manager
 import debug
 from data import Data, status
 from data.scoreboard import Scoreboard
@@ -29,6 +30,8 @@ class MainRenderer:
         self.animation_time = 0
         self.standings_stat = "w"
         self.standings_league = "NL"
+        self._inning_break_boards_shown = None
+        self._boards_shown_game_state = None
 
     def render(self):
         screen = self.data.get_screen_type()
@@ -39,31 +42,23 @@ class MainRenderer:
         elif screen == ScreenType.ALWAYS_STANDINGS:
             self.__render_standings()
         elif screen == ScreenType.LEAGUE_OFFDAY:
-            self.__render_offday(team_offday=False)
+            self.__render_offday()
         elif screen == ScreenType.PREFERRED_TEAM_OFFDAY:
-            self.__render_offday(team_offday=True)
+            self.__render_offday()
         # Playball!
         else:
             self.__render_gameday()
 
-    def __render_offday(self, team_offday=True) -> NoReturn:
-        if team_offday:
-            news = self.data.config.news_ticker_team_offday
-            standings = self.data.config.standings_team_offday
-        else:
-            news = True
-            standings = self.data.config.standings_mlb_offday
+    def swap_canvas(self):
+        self.canvas = self.__swap()
 
-        switch_time = self.data.config.standings_news_rotation_rate
+    def run_boards(self, board_names):
+        from boards import run_boards
+        run_boards(self, board_names, self.data.config.boards_rotation_rate)
 
-        if news and standings:
-            while True:
-                self.__draw_news(timer_cond(switch_time))
-                self.__draw_standings(timer_cond(switch_time))
-        elif news:
-            self.__draw_news(permanent_cond)
-        else:
-            self.__render_standings()
+    def __render_offday(self) -> NoReturn:
+        while True:
+            self.run_boards(self.data.config.boards_offday)
 
     def __render_standings(self) -> NoReturn:
         self.__draw_standings(permanent_cond)
@@ -106,8 +101,17 @@ class MainRenderer:
         scoreboard = Scoreboard(game)
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
+        preferred = self.data.config.preferred_teams
+        is_preferred_game = scoreboard.home_team.name in preferred or scoreboard.away_team.name in preferred
+        spoiler_free = spoiler_mode_manager.is_spoiler_mode() and is_preferred_game
 
         if status.is_pregame(game.status()):  # Draw the pregame information
+            game_key = (game.game_id, "pregame")
+            if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
+                if not self.data.schedule.get_live_preferred_game_indices():
+                    self._boards_shown_game_state = game_key
+                    self.run_boards(self.data.config.boards_no_preferred_playing)
+                    return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
             pos = pregamerender.render_pregame(
@@ -122,6 +126,12 @@ class MainRenderer:
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
+            game_key = (game.game_id, "postgame")
+            if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
+                if not self.data.schedule.get_live_preferred_game_indices():
+                    self._boards_shown_game_state = game_key
+                    self.run_boards(self.data.config.boards_no_preferred_playing)
+                    return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
             pos = postgamerender.render_postgame(
@@ -147,14 +157,20 @@ class MainRenderer:
             else:
                 self.animation_time = 0
 
+            inning_key = (scoreboard.inning.number, scoreboard.inning.state)
             if status.is_inning_break(scoreboard.inning.state):
+                if self.data.config.boards_inning_break and self._inning_break_boards_shown != inning_key:
+                    self._inning_break_boards_shown = inning_key
+                    self.run_boards(self.data.config.boards_inning_break)
                 loop_point = self.data.config.layout.coords("inning.break.due_up")["loop"]
             else:
+                self._inning_break_boards_shown = None
                 loop_point = self.data.config.layout.coords("atbat")["loop"]
 
             self.scrolling_text_pos = min(self.scrolling_text_pos, loop_point)
             pos = gamerender.render_live_game(
-                self.canvas, layout, colors, scoreboard, self.scrolling_text_pos, self.animation_time
+                self.canvas, layout, colors, scoreboard, self.scrolling_text_pos, self.animation_time,
+                spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, loop_point)
 
@@ -167,7 +183,7 @@ class MainRenderer:
             scoreboard.away_team,
             self.data.config.full_team_names,
             self.data.config.short_team_names_for_runs_hits,
-            show_score=not status.is_pregame(game.status()),
+            show_score=not status.is_pregame(game.status()) and not spoiler_free,
         )
 
         # Show network issues

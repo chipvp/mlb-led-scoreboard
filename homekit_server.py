@@ -1,8 +1,8 @@
 import logging
 import threading
-from pyhap.accessory import Accessory
+from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
-from pyhap.const import CATEGORY_LIGHTBULB
+from pyhap.const import CATEGORY_LIGHTBULB, CATEGORY_SWITCH
 
 
 class BrightnessAccessory(Accessory):
@@ -35,12 +35,28 @@ class BrightnessAccessory(Accessory):
         brightness_manager.set_brightness(value)
 
 
+class SpoilerModeAccessory(Accessory):
+    category = CATEGORY_SWITCH
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        serv = self.add_preload_service('Switch')
+        self.char_on = serv.configure_char('On', setter_callback=self.set_on)
+
+    def set_on(self, value):
+        import spoiler_mode_manager
+        print(f'[HomeKit] Spoiler mode set to {value}')
+        spoiler_mode_manager.set_spoiler_mode(value)
+
+
 def run_homekit_service():
     logging.basicConfig(level=logging.INFO)
     try:
         driver = AccessoryDriver(port=51826)
-        accessory = BrightnessAccessory(driver, 'MLB Scoreboard Brightness')
-        driver.add_accessory(accessory)
+        bridge = Bridge(driver, 'MLB Scoreboard')
+        bridge.add_accessory(BrightnessAccessory(driver, 'Brightness'))
+        bridge.add_accessory(SpoilerModeAccessory(driver, 'Spoiler Free'))
+        driver.add_accessory(bridge)
         print('[HomeKit] Starting accessory server...')
         driver.start()
     except Exception:
