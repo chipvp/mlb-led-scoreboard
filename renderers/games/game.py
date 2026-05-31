@@ -13,7 +13,9 @@ from renderers import scrollingtext
 from renderers.games import nohitter
 
 
-def render_live_game(canvas, layout: Layout, colors: Color, scoreboard: Scoreboard, text_pos, animation_time):
+def render_live_game(canvas, layout: Layout, colors: Color, scoreboard: Scoreboard, text_pos, animation_time, spoiler_free=False):
+    if spoiler_free:
+        return text_pos
     pos = 0
     if not status.is_inning_break(scoreboard.inning.state):
         pos = _render_at_bat(

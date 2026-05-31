@@ -3,6 +3,7 @@ from typing import Callable, NoReturn
 from data.screens import ScreenType
 
 import brightness_manager
+import spoiler_mode_manager
 import debug
 from data import Data, status
 from data.scoreboard import Scoreboard
@@ -100,6 +101,9 @@ class MainRenderer:
         scoreboard = Scoreboard(game)
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
+        preferred = self.data.config.preferred_teams
+        is_preferred_game = scoreboard.home_team.name in preferred or scoreboard.away_team.name in preferred
+        spoiler_free = spoiler_mode_manager.is_spoiler_mode() and is_preferred_game
 
         if status.is_pregame(game.status()):  # Draw the pregame information
             game_key = (game.game_id, "pregame")
@@ -163,7 +167,8 @@ class MainRenderer:
 
             self.scrolling_text_pos = min(self.scrolling_text_pos, loop_point)
             pos = gamerender.render_live_game(
-                self.canvas, layout, colors, scoreboard, self.scrolling_text_pos, self.animation_time
+                self.canvas, layout, colors, scoreboard, self.scrolling_text_pos, self.animation_time,
+                spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, loop_point)
 
@@ -176,7 +181,7 @@ class MainRenderer:
             scoreboard.away_team,
             self.data.config.full_team_names,
             self.data.config.short_team_names_for_runs_hits,
-            show_score=not status.is_pregame(game.status()),
+            show_score=not status.is_pregame(game.status()) and not spoiler_free,
         )
 
         # Show network issues
