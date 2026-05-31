@@ -9,8 +9,9 @@ class WeatherBoard(Board):
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
         text_pos = self.renderer.canvas.width
+        end = time.time() + duration
 
-        while True:
+        while time.time() < end:
             bgcolor = colors.color("default.background")
             self.renderer.canvas.Fill(bgcolor["r"], bgcolor["g"], bgcolor["b"])
 
