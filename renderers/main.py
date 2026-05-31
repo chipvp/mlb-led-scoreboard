@@ -108,9 +108,10 @@ class MainRenderer:
         if status.is_pregame(game.status()):  # Draw the pregame information
             game_key = (game.game_id, "pregame")
             if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
-                self._boards_shown_game_state = game_key
-                self.run_boards(self.data.config.boards_no_preferred_playing)
-                return
+                if not self.data.schedule.get_live_preferred_game_indices():
+                    self._boards_shown_game_state = game_key
+                    self.run_boards(self.data.config.boards_no_preferred_playing)
+                    return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
             pos = pregamerender.render_pregame(
@@ -127,9 +128,10 @@ class MainRenderer:
         elif status.is_complete(game.status()):  # Draw the game summary
             game_key = (game.game_id, "postgame")
             if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
-                self._boards_shown_game_state = game_key
-                self.run_boards(self.data.config.boards_no_preferred_playing)
-                return
+                if not self.data.schedule.get_live_preferred_game_indices():
+                    self._boards_shown_game_state = game_key
+                    self.run_boards(self.data.config.boards_no_preferred_playing)
+                    return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
             pos = postgamerender.render_postgame(

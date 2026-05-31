@@ -123,6 +123,12 @@ class Schedule:
         if not self.config.preferred_teams:
             return -1  # no preferred team
 
+        # Prefer a live preferred team game if one exists
+        live_indices = self.get_live_preferred_game_indices()
+        if live_indices:
+            return live_indices[0]
+
+        # Fall back to first preferred team's scheduled game
         team_id = data.teams.get_team_id(self.config.preferred_teams[0])
         return next(
             (
@@ -130,7 +136,7 @@ class Schedule:
                 for i, game in enumerate(self._games)
                 if team_id in (game["away_id"], game["home_id"])
             ),
-            -1, # no preferred team game
+            -1,  # no preferred team game
         )
 
     def get_live_preferred_game_indices(self):
