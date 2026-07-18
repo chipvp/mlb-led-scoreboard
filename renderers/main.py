@@ -135,7 +135,8 @@ class MainRenderer:
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
             pos = postgamerender.render_postgame(
-                self.canvas, layout, colors, final, scoreboard, self.scrolling_text_pos, self.is_playoffs
+                self.canvas, layout, colors, final, scoreboard, self.scrolling_text_pos, self.is_playoffs,
+                spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 

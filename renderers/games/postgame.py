@@ -12,8 +12,11 @@ NORMAL_GAME_LENGTH = 9
 
 
 def render_postgame(
-    canvas, layout: Layout, colors: Color, postgame: Postgame, scoreboard: Scoreboard, text_pos, is_playoffs
+    canvas, layout: Layout, colors: Color, postgame: Postgame, scoreboard: Scoreboard, text_pos, is_playoffs,
+    spoiler_free=False,
 ):
+    if spoiler_free:
+        return text_pos
     try:
         linescore_enabled = layout.coords("linescore").get("enabled", False)
     except KeyError:
