@@ -46,14 +46,16 @@ def render_team_banner(
             accent_color = __lift_black(accent_color)
         __draw_filled_box(canvas, accent_coords[team], accent_color)
 
-    use_full_team_names = can_use_full_team_names(
-        canvas, full_team_names, short_team_names_for_runs_hits, [home_team, away_team]
-    )
+    use_full_team_names = can_use_full_team_names(canvas, full_team_names)
 
     home_text = __lift_black(home_colors['text'])
 
-    away_name_end_pos = __render_team_text(canvas, layout, away_colors['text'], away_team, "away", use_full_team_names)
-    home_name_end_pos = __render_team_text(canvas, layout, home_text, home_team, "home", use_full_team_names)
+    away_name_end_pos = __render_team_text(
+        canvas, layout, away_colors['text'], away_team, "away", use_full_team_names, short_team_names_for_runs_hits
+    )
+    home_name_end_pos = __render_team_text(
+        canvas, layout, home_text, home_team, "home", use_full_team_names, short_team_names_for_runs_hits
+    )
 
     __render_record_text(canvas, layout, away_colors['text'], away_team, "away", away_name_end_pos)
     __render_record_text(canvas, layout, home_text, home_team, "home", home_name_end_pos)
@@ -70,38 +72,23 @@ def render_team_banner(
 
 
 
-def can_use_full_team_names(canvas, enabled, abbreviate_on_overflow, teams):
+def can_use_full_team_names(canvas, enabled):
     # Settings enabled and size is able to display it
-    if enabled and canvas.width > 32:
-
-        # If config enabled for abbreviating if runs or hits takes up an additional column (i.e. 9 -> 10)
-        if abbreviate_on_overflow:
-
-            # Iterate through the teams to see if we should abbreviate
-            for team in teams:
-                if team.runs > 9 or team.hits > 9:
-                    return False
-
-            # Else use full names if no stats column has overflowed
-            return True
-
-        # If config for abbreviating is not set, use full name
-        else:
-            return True
-
-    # Fallback to abbreviated names for all cases
-    return False
+    return enabled and canvas.width > 32
 
 
-
-
-def __render_team_text(canvas, layout, text_color, team, homeaway, full_team_names):
+def __render_team_text(canvas, layout, text_color, team, homeaway, full_team_names, shorten_on_overflow):
     text_color_graphic = graphics.Color(text_color["r"], text_color["g"], text_color["b"])
     coords = layout.coords("teams.name.{}".format(homeaway))
     font = layout.font("teams.name.{}".format(homeaway))
     team_text = "{:3s}".format(team.abbrev.upper()).strip()
     if full_team_names:
-        team_text = "{:13s}".format(team.name).strip()
+        name = team.name
+        # Switch to a shorter alternate name once this team's own runs or hits
+        # reach double digits, so the score column doesn't overlap the name.
+        if shorten_on_overflow and (team.runs > 9 or team.hits > 9):
+            name = team.short_name
+        team_text = "{:13s}".format(name).strip()
     graphics.DrawText(canvas, font["font"], coords["x"], coords["y"], text_color_graphic, team_text)
 
     return (coords["x"] + (len(team_text) * font["size"]["width"]), coords["y"])

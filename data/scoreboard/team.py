@@ -2,10 +2,11 @@ import debug
 
 
 class Team:
-    def __init__(self, abbrev, runs, name, hits, errors, record, special_uniform):
+    def __init__(self, abbrev, runs, name, short_name, hits, errors, record, special_uniform):
         self.abbrev = abbrev
         self.runs = runs
         self.name = name
+        self.short_name = short_name
         self.hits = hits
         self.errors = errors
         self.record = record

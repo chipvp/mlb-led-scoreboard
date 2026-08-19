@@ -95,6 +95,12 @@ class Game:
             self._current_data["gameData"]["teams"]["home"]["teamName"],
         )
 
+    def home_short_name(self):
+        return teams.TEAM_ID_SHORT_NAME.get(
+            self._current_data["gameData"]["teams"]["home"]["id"],
+            self.home_name(),
+        )
+
     def home_abbreviation(self):
         return teams.TEAM_ID_ABBR.get(
             self._current_data["gameData"]["teams"]["home"]["id"],
@@ -132,6 +138,12 @@ class Game:
         return teams.TEAM_ID_NAME.get(
             self._current_data["gameData"]["teams"]["away"]["id"],
             self._current_data["gameData"]["teams"]["away"]["teamName"],
+        )
+
+    def away_short_name(self):
+        return teams.TEAM_ID_SHORT_NAME.get(
+            self._current_data["gameData"]["teams"]["away"]["id"],
+            self.away_name(),
         )
 
     def away_abbreviation(self):
