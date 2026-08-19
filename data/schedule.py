@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timedelta, timezone
 
 import statsapi
 
@@ -25,16 +26,17 @@ class Schedule:
 
     def update(self, force=False) -> UpdateStatus:
         if force or self.__should_update():
-            self.date = self.config.parse_today()
-            debug.log("Updating schedule for %s", self.date)
+            today = self.config.parse_today()
             self.starttime = time.time()
             try:
                 # add sportId=51 to additionally get WBC games
-                self.__all_games = statsapi.schedule(self.date.strftime("%Y-%m-%d"), sportId="1,51")
+                todays_games = statsapi.schedule(today.strftime("%Y-%m-%d"), sportId="1,51")
+                self.date, self.__all_games = self.__resolve_date(today, todays_games)
             except:
                 debug.exception("Networking error while refreshing schedule")
                 return UpdateStatus.FAIL
             else:
+                debug.log("Updating schedule for %s", self.date)
                 games = self.__all_games
 
                 if self.config.rotation_only_preferred:
@@ -58,6 +60,23 @@ class Schedule:
     def __should_update(self):
         endtime = time.time()
         return endtime - self.starttime >= GAMES_REFRESH_RATE
+
+    # Falls back to `today` when there are no games scheduled, so a full
+    # league off-day shows the normal off-day screen instead of yesterday forever.
+    def __resolve_date(self, today, todays_games):
+        if not self.config.show_yesterday_scores_enabled or not todays_games:
+            return today, todays_games
+
+        first_pitch = min(
+            datetime.fromisoformat(game["game_datetime"].replace("Z", "+00:00")) for game in todays_games
+        )
+        cutoff = first_pitch - timedelta(hours=self.config.show_yesterday_scores_hours_before)
+        if datetime.now(timezone.utc) >= cutoff:
+            return today, todays_games
+
+        yesterday = today - timedelta(days=1)
+        yesterdays_games = statsapi.schedule(yesterday.strftime("%Y-%m-%d"), sportId="1,51")
+        return yesterday, yesterdays_games
 
     # offday code
     def is_offday_for_preferred_team(self):

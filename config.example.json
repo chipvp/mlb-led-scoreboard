@@ -42,6 +42,10 @@
 	},
 	"time_format": "12h",
 	"end_of_day": "00:00",
+	"show_yesterday_scores": {
+		"enabled": false,
+		"hours_before_first_game": 1
+	},
 	"full_team_names": true,
 	"short_team_names_for_runs_hits": true,
 	"preferred_game_delay_multiplier": 0,
