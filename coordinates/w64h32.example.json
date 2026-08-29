@@ -349,7 +349,6 @@
     "show_team": true,
     "team_abbrev_x": 1,
     "innings_start_x": 14,
-    "total_x": 60,
     "background": {
       "x": 0,
       "y": 14,
