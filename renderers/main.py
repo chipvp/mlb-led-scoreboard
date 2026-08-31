@@ -31,7 +31,7 @@ class MainRenderer:
         self.standings_stat = "w"
         self.standings_league = "NL"
         self._inning_break_boards_shown = None
-        self._boards_shown_game_state = None
+        self._no_preferred_boards_shown = False
 
     def render(self):
         screen = self.data.get_screen_type()
@@ -105,11 +105,15 @@ class MainRenderer:
         is_preferred_game = scoreboard.home_team.name in preferred or scoreboard.away_team.name in preferred
         spoiler_free = spoiler_mode_manager.is_spoiler_mode() and is_preferred_game
 
+        # Reset once a preferred team is live again, so the boards show once more
+        # the next time we drop out of a preferred team's live game.
+        if self.data.schedule.get_live_preferred_game_indices():
+            self._no_preferred_boards_shown = False
+
         if status.is_pregame(game.status()):  # Draw the pregame information
-            game_key = (game.game_id, "pregame")
-            if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
+            if self.data.config.boards_no_preferred_playing and not self._no_preferred_boards_shown:
                 if not self.data.schedule.get_live_preferred_game_indices():
-                    self._boards_shown_game_state = game_key
+                    self._no_preferred_boards_shown = True
                     self.run_boards(self.data.config.boards_no_preferred_playing)
                     return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
@@ -126,10 +130,9 @@ class MainRenderer:
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
-            game_key = (game.game_id, "postgame")
-            if self.data.config.boards_no_preferred_playing and self._boards_shown_game_state != game_key:
+            if self.data.config.boards_no_preferred_playing and not self._no_preferred_boards_shown:
                 if not self.data.schedule.get_live_preferred_game_indices():
-                    self._boards_shown_game_state = game_key
+                    self._no_preferred_boards_shown = True
                     self.run_boards(self.data.config.boards_no_preferred_playing)
                     return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))

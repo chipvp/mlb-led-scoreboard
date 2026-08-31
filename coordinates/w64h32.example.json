@@ -348,11 +348,11 @@
     "column_width": 5,
     "show_team": true,
     "team_abbrev_x": 1,
-    "innings_start_x": 14,
+    "innings_start_x": 15,
     "background": {
       "x": 0,
       "y": 14,
-      "width": 63,
+      "width": 64,
       "height": 17
     },
     "away": {
