@@ -27,10 +27,10 @@ def render_postgame(
     else:
         _render_final_inning(canvas, layout, colors, scoreboard)
 
-    return _render_decision_scroll(canvas, layout, colors, postgame, text_pos, is_playoffs)
+    return _render_decision_scroll(canvas, layout, colors, postgame, scoreboard, text_pos, is_playoffs)
 
 
-def _render_decision_scroll(canvas, layout, colors, postgame, text_pos, is_playoffs):
+def _render_decision_scroll(canvas, layout, colors, postgame, scoreboard, text_pos, is_playoffs):
     coords = layout.coords("final.scrolling_text")
     font = layout.font("final.scrolling_text")
     color = colors.graphics_color("final.scrolling_text")
@@ -43,6 +43,8 @@ def _render_decision_scroll(canvas, layout, colors, postgame, text_pos, is_playo
         postgame.losing_pitcher_wins,
         postgame.losing_pitcher_losses,
     )
+    if scoreboard.inning.number != NORMAL_GAME_LENGTH:
+        scroll_text = "Final/{}   {}".format(scoreboard.inning.number, scroll_text)
     if postgame.save_pitcher:
         scroll_text += " SV: {} ({})".format(postgame.save_pitcher, postgame.save_pitcher_saves)
 
