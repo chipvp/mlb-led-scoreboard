@@ -131,3 +131,4 @@ configs/
 logs.txt
 logs/.brightness_state
 .brightness_state
+.spoiler_mode_state

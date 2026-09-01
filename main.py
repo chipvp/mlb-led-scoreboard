@@ -40,6 +40,7 @@ def main(matrix, config_base):
 
     # Read scoreboard options from config.json if it exists
     config = Config(config_base, matrix.width, matrix.height)
+    start_homekit_background_thread(config.preferred_teams)
     # Set the scoreboard logger
     logger = logging.getLogger("mlbled")
     if config.debug:
@@ -176,7 +177,6 @@ if __name__ == "__main__":
     # Initialize the matrix
     matrix = RGBMatrix(options=matrixOptions)
     register_matrix(matrix)
-    start_homekit_background_thread()
     try:
         main(matrix, clargs.config)
     except:

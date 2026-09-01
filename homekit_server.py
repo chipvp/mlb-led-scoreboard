@@ -36,17 +36,25 @@ class BrightnessAccessory(Accessory):
 
 
 class SpoilerModeAccessory(Accessory):
+    """A spoiler-free switch. With `team` set, it only affects that team's games;
+    otherwise it's the global switch that affects every preferred team's games."""
+
     category = CATEGORY_SWITCH
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, team=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.team = team
         serv = self.add_preload_service('Switch')
         self.char_on = serv.configure_char('On', setter_callback=self.set_on)
 
     def set_on(self, value):
         import spoiler_mode_manager
-        print(f'[HomeKit] Spoiler mode set to {value}')
-        spoiler_mode_manager.set_spoiler_mode(value)
+        if self.team:
+            print(f'[HomeKit] Spoiler mode for {self.team} set to {value}')
+            spoiler_mode_manager.set_team_spoiler_mode(self.team, value)
+        else:
+            print(f'[HomeKit] Spoiler mode set to {value}')
+            spoiler_mode_manager.set_spoiler_mode(value)
 
 
 def _mdns_keepalive(driver, interval=20):
@@ -60,13 +68,15 @@ def _mdns_keepalive(driver, interval=20):
             pass
 
 
-def run_homekit_service():
+def run_homekit_service(preferred_teams=None):
     logging.basicConfig(level=logging.INFO)
     try:
         driver = AccessoryDriver(port=51826, pincode=b"031-45-154")
         bridge = Bridge(driver, 'MLB Scoreboard')
         bridge.add_accessory(BrightnessAccessory(driver, 'Brightness'))
-        bridge.add_accessory(SpoilerModeAccessory(driver, 'Spoiler Free'))
+        for team in preferred_teams or []:
+            bridge.add_accessory(SpoilerModeAccessory(driver, f'{team} Spoiler Free', team=team))
+        bridge.add_accessory(SpoilerModeAccessory(driver, 'Spoiler Mode'))
         driver.add_accessory(bridge)
         keepalive = threading.Thread(target=_mdns_keepalive, args=(driver,), daemon=True)
         keepalive.start()
@@ -76,7 +86,9 @@ def run_homekit_service():
         logging.exception('[HomeKit] Accessory server failed — HomeKit control unavailable')
 
 
-def start_homekit_background_thread():
-    thread = threading.Thread(target=run_homekit_service, name='HomeKitThread', daemon=True)
+def start_homekit_background_thread(preferred_teams=None):
+    thread = threading.Thread(
+        target=run_homekit_service, args=(preferred_teams,), name='HomeKitThread', daemon=True
+    )
     thread.start()
     print('[HomeKit] Background thread started.')

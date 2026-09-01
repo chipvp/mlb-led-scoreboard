@@ -102,8 +102,12 @@ class MainRenderer:
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
         preferred = self.data.config.preferred_teams
-        is_preferred_game = scoreboard.home_team.name in preferred or scoreboard.away_team.name in preferred
-        spoiler_free = spoiler_mode_manager.is_spoiler_mode() and is_preferred_game
+        preferred_teams_in_game = [
+            team for team in (scoreboard.home_team.name, scoreboard.away_team.name) if team in preferred
+        ]
+        spoiler_free = any(
+            spoiler_mode_manager.is_spoiler_free_for_team(team) for team in preferred_teams_in_game
+        )
 
         # Reset once a preferred team is live again, so the boards show once more
         # the next time we drop out of a preferred team's live game.
