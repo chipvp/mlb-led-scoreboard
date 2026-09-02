@@ -84,10 +84,17 @@ def __render_team_text(canvas, layout, text_color, team, homeaway, full_team_nam
     team_text = "{:3s}".format(team.abbrev.upper()).strip()
     if full_team_names:
         name = team.name
-        # Switch to a shorter alternate name once this team's own runs or hits
-        # reach double digits, so the score column doesn't overlap the name.
-        if shorten_on_overflow and (team.runs > 9 or team.hits > 9):
-            name = team.short_name
+        # Switch to a shorter alternate name once the score risks overlapping
+        # the name. Names of exactly 7 characters have little margin, so both
+        # runs and hits must hit double digits; longer names (8+) only need
+        # one of the two to overflow.
+        if shorten_on_overflow:
+            overflows = (
+                team.runs > 9 and team.hits > 9 if len(team.name) == 7
+                else team.runs > 9 or team.hits > 9
+            )
+            if overflows:
+                name = team.short_name
         team_text = "{:13s}".format(name).strip()
     graphics.DrawText(canvas, font["font"], coords["x"], coords["y"], text_color_graphic, team_text)
 
