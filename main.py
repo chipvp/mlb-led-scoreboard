@@ -26,10 +26,12 @@ from pathlib import Path
 import driver
 
 
+import brightness_manager
 from data import Data
 from data.config import Config
 from data.plugins import load_plugins
 from data.paths import *
+from homekit_server import start_homekit_background_thread
 
 from renderers.main import MainRenderer
 from version import SCRIPT_NAME, SCRIPT_VERSION
@@ -66,6 +68,8 @@ def main(matrix, config):
         logo = Image.open(logo_path)
         matrix.SetImage(logo.convert("RGB"))
         logo.close()
+
+    start_homekit_background_thread(config.preferred_teams)
 
     plugins = load_plugins(config)
 
@@ -117,6 +121,7 @@ if __name__ == "__main__":
 
     matrix = RGBMatrix(options=config.matrix_options)
     config.set_layout(width=matrix.width, height=matrix.height)
+    brightness_manager.register_matrix(matrix)
 
     profiling_enabled = config and config.profiling_enabled
     try:

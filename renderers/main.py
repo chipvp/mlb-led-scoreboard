@@ -5,6 +5,8 @@ from contextlib import contextmanager
 
 
 import bullpen.api as api
+import brightness_manager
+import spoiler_mode_manager
 
 
 from bullpen.logging import LOGGER
@@ -76,6 +78,7 @@ class MainRenderer:
         scoreboard = Scoreboard(game)
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
+        spoiler_free = self.__is_spoiler_free(scoreboard)
 
         if status.is_pregame(game.status()):  # Draw the pregame information
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
@@ -104,6 +107,7 @@ class MainRenderer:
                 self.scrolling_text_pos,
                 self.data.config.editorial_blurb,
                 self.data.config.is_postseason(),
+                spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
@@ -132,7 +136,13 @@ class MainRenderer:
 
             self.scrolling_text_pos = min(self.scrolling_text_pos, loop_point)
             pos = gamerender.render_live_game(
-                self.canvas, layout, colors, scoreboard, self.scrolling_text_pos, self.animation_time
+                self.canvas,
+                layout,
+                colors,
+                scoreboard,
+                self.scrolling_text_pos,
+                self.animation_time,
+                spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, loop_point)
 
@@ -143,7 +153,7 @@ class MainRenderer:
             self.data.config.team_colors,
             scoreboard.home_team,
             scoreboard.away_team,
-            show_score=not status.is_pregame(game.status()),
+            show_score=not status.is_pregame(game.status()) and not spoiler_free,
             scoreboard_colors=colors,
         )
 
@@ -151,7 +161,7 @@ class MainRenderer:
         if self.data.network_issues:
             network.render_network_error(self.canvas, layout, colors)
 
-        self.canvas = self.matrix.SwapOnVSync(self.canvas)
+        self.canvas = self.__swap()
 
     def __draw_plugin_screen(self, plugin_name: str, cond: Callable[[], bool]) -> None:
         from driver import graphics
@@ -171,9 +181,21 @@ class MainRenderer:
                     network.render_network_error(
                         self.canvas, self.data.config.layout, self.data.config.scoreboard_colors
                     )
-                self.canvas = self.matrix.SwapOnVSync(self.canvas)
+                self.canvas = self.__swap()
 
         renderer.reset()
+
+    def __is_spoiler_free(self, scoreboard: Scoreboard) -> bool:
+        """True if spoiler mode applies to a preferred team playing in this game."""
+        preferred = self.data.config.preferred_teams
+        teams_in_game = [team.name for team in (scoreboard.home_team, scoreboard.away_team) if team.name in preferred]
+        return any(spoiler_mode_manager.is_spoiler_free_for_team(team) for team in teams_in_game)
+
+    def __swap(self):
+        """Swap the canvas, or fill black first if the board is powered off."""
+        if brightness_manager.is_off():
+            self.canvas.Fill(0, 0, 0)
+        return self.matrix.SwapOnVSync(self.canvas)
 
     def __max_scroll_x(self, scroll_coords):
         scroll_max_x = scroll_coords["x"] + scroll_coords["width"]

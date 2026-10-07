@@ -62,6 +62,9 @@ class Config:
             json["rotation"]["screens"]
         )
 
+        # Teams named in any game rule. HomeKit gets a spoiler switch per team, and spoiler mode applies to them.
+        self.preferred_teams = _preferred_team_names(json["rotation"]["screens"])
+
         # TODO moving this inside a 'plugin' is a bit weird?
         self.pregame_weather = json["weather"]["pregame"]
 
@@ -398,6 +401,17 @@ If you aren't sure why you're seeing this, there might not be official support f
         )
 
         return keys_match and options_match
+
+
+def _preferred_team_names(screens_json) -> list[str]:
+    """Team names listed in game rules, in config order without duplicates."""
+    names: list[str] = []
+    for rule_json in screens_json:
+        if rule_json.get("kind") in ("game", "secondary_game"):
+            for name in rule_json.get("teams", []):
+                if name not in names:
+                    names.append(name)
+    return names
 
 
 def _screen_rules_from_json(json) -> tuple[list[GameScreen], list[TimeRule], Mapping[int, Mapping[str, int]]]:

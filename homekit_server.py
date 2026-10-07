@@ -11,26 +11,28 @@ class BrightnessAccessory(Accessory):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        serv_light = self.add_preload_service('Lightbulb', chars=['On', 'Brightness'])
+        serv_light = self.add_preload_service("Lightbulb", chars=["On", "Brightness"])
 
-        self.char_on = serv_light.configure_char('On', setter_callback=self.set_on)
-        self.char_brightness = serv_light.configure_char('Brightness', setter_callback=self.set_brightness)
+        self.char_on = serv_light.configure_char("On", setter_callback=self.set_on)
+        self.char_brightness = serv_light.configure_char("Brightness", setter_callback=self.set_brightness)
 
         self._last_brightness = 100
 
     def set_on(self, value):
         import brightness_manager
+
         if value:
-            print(f'[HomeKit] Power ON — restoring brightness to {self._last_brightness}')
+            print(f"[HomeKit] Power ON — restoring brightness to {self._last_brightness}")
             brightness_manager.power_on(self._last_brightness)
         else:
             self._last_brightness = brightness_manager.get_brightness()
-            print(f'[HomeKit] Power OFF — clearing matrix')
+            print(f"[HomeKit] Power OFF — clearing matrix")
             brightness_manager.power_off()
 
     def set_brightness(self, value):
         import brightness_manager
-        print(f'[HomeKit] Brightness set to {value}')
+
+        print(f"[HomeKit] Brightness set to {value}")
         self._last_brightness = value
         brightness_manager.set_brightness(value)
 
@@ -44,22 +46,24 @@ class SpoilerModeAccessory(Accessory):
     def __init__(self, *args, team=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.team = team
-        serv = self.add_preload_service('Switch')
-        self.char_on = serv.configure_char('On', setter_callback=self.set_on)
+        serv = self.add_preload_service("Switch")
+        self.char_on = serv.configure_char("On", setter_callback=self.set_on)
 
     def set_on(self, value):
         import spoiler_mode_manager
+
         if self.team:
-            print(f'[HomeKit] Spoiler mode for {self.team} set to {value}')
+            print(f"[HomeKit] Spoiler mode for {self.team} set to {value}")
             spoiler_mode_manager.set_team_spoiler_mode(self.team, value)
         else:
-            print(f'[HomeKit] Spoiler mode set to {value}')
+            print(f"[HomeKit] Spoiler mode set to {value}")
             spoiler_mode_manager.set_spoiler_mode(value)
 
 
 def _mdns_keepalive(driver, interval=20):
     """Re-announce mDNS every interval seconds to keep Unifi's reflector cache alive."""
     import time
+
     while True:
         time.sleep(interval)
         try:
@@ -72,23 +76,21 @@ def run_homekit_service(preferred_teams=None):
     logging.basicConfig(level=logging.INFO)
     try:
         driver = AccessoryDriver(port=51826, pincode=b"031-45-154")
-        bridge = Bridge(driver, 'MLB Scoreboard')
-        bridge.add_accessory(BrightnessAccessory(driver, 'Brightness'))
+        bridge = Bridge(driver, "MLB Scoreboard")
+        bridge.add_accessory(BrightnessAccessory(driver, "Brightness"))
         for team in preferred_teams or []:
-            bridge.add_accessory(SpoilerModeAccessory(driver, f'{team} Spoiler Free', team=team))
-        bridge.add_accessory(SpoilerModeAccessory(driver, 'Spoiler Mode'))
+            bridge.add_accessory(SpoilerModeAccessory(driver, f"{team} Spoiler Free", team=team))
+        bridge.add_accessory(SpoilerModeAccessory(driver, "Spoiler Mode"))
         driver.add_accessory(bridge)
         keepalive = threading.Thread(target=_mdns_keepalive, args=(driver,), daemon=True)
         keepalive.start()
-        print('[HomeKit] Starting accessory server...')
+        print("[HomeKit] Starting accessory server...")
         driver.start()
     except Exception:
-        logging.exception('[HomeKit] Accessory server failed — HomeKit control unavailable')
+        logging.exception("[HomeKit] Accessory server failed — HomeKit control unavailable")
 
 
 def start_homekit_background_thread(preferred_teams=None):
-    thread = threading.Thread(
-        target=run_homekit_service, args=(preferred_teams,), name='HomeKitThread', daemon=True
-    )
+    thread = threading.Thread(target=run_homekit_service, args=(preferred_teams,), name="HomeKitThread", daemon=True)
     thread.start()
-    print('[HomeKit] Background thread started.')
+    print("[HomeKit] Background thread started.")

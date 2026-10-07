@@ -19,7 +19,11 @@ def render_postgame(
     text_pos,
     editorial_blurb,
     is_playoffs,
+    spoiler_free=False,
 ):
+    if spoiler_free:
+        return text_pos
+
     try:
         linescore_enabled = layout.coords("linescore").get("enabled", False)
     except KeyError:
