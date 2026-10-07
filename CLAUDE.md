@@ -68,6 +68,17 @@ Keep these when merging upstream:
 
 The v8 fork's `boards` contexts (`offday`, `no_preferred_playing`, `inning_break`) are gone: use priorities instead. `fork-v8-final` is the tag of the last v8 commit.
 
+## Deployment (the Pi)
+
+The scoreboard runs on a Raspberry Pi Zero 2 W (about 415 MB usable RAM), reachable as `ssh score`, from `~/mlb-v9` (a clone of this repo's `master`) with its own `venv`. The systemd unit is `/etc/systemd/system/mlb-scoreboard.service`, running as root with `--config=config-v9 --led-rows=32 --led-cols=64 --led-chain=1 --led-slowdown-gpio=5 --led-gpio-mapping=adafruit-hat-pwm --led-pwm-bits=9 --led-limit-refresh=100`. The old v8 checkout is still at `~/mlb-led-scoreboard`, and the v8 unit is saved as `mlb-scoreboard.service.v8.bak`. `chip` can start, stop and restart the service without a password; anything else needs sudo.
+
+- **Don't compile `rgbmatrix` on this Pi.** `requirements.rpi.txt` builds the C++ bindings from a pinned git commit, and that build rebooted the Zero 2 W (most likely out of memory; a power sag is also possible, and no journal survived to confirm). The venv instead uses the library already built for v8: copy `rgbmatrix/` and `rgbmatrix-0.0.1-py3.13.egg-info/` from `~/mlb-led-scoreboard/venv/lib/python3.13/site-packages/` into the new venv's `site-packages/`. Installing `requirements.txt` (without `requirements.rpi.txt`) and then copying those two directories is the working recipe.
+- **What the old build lacks:** only `rp1_pio` (Raspberry Pi 5 support), which logs a harmless "compiled RGB Matrix Library is out of date" warning. Every other option v9 passes is supported, including `--led-limit-refresh` and `--led-pwm-dither-bits`.
+- **Flicker/colors:** `--led-pwm-bits=7` washes out dim colors, 9 or 11 bits fix that but flicker, and 9 bits with `--led-limit-refresh=100` gave steady colors with no flicker.
+- **`--emulated` does not work on the Pi:** `rgbmatrix` is importable there, so `driver/` always picks the hardware driver and `--emulated` produces a mixed hardware/emulator canvas.
+- **Only one HomeKit bridge may run at a time.** v8 and v9 share the same `accessory.state` identity, so stop the service before running `main.py` by hand, and copy the live `accessory.state`, `.brightness_state` and `.spoiler_mode_state` between checkouts when switching.
+- **Testing a past day:** `demo_date` in a config replays a date from the API, e.g. `"2026-09-27"` for games where the Cubs and Angels both played.
+
 ## Tests
 
 Tests live in `tests/`, plus `standings/tests/`. They run in emulator mode and need no hardware. Use `tests/helpers.py::make_test_config` to build a `Config` against `tests/fixtures/`. `tests/test_schedule.py` and `tests/test_data_up_to_date.py` call the live MLB API, so they need network access.
