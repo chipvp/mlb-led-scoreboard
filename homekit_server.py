@@ -23,17 +23,17 @@ class BrightnessAccessory(Accessory):
         import brightness_manager
 
         if value:
-            print(f"[HomeKit] Power ON — restoring brightness to {self._last_brightness}")
+            print(f"[HomeKit] Power ON — restoring brightness to {self._last_brightness}", flush=True)
             brightness_manager.power_on(self._last_brightness)
         else:
             self._last_brightness = brightness_manager.get_brightness()
-            print(f"[HomeKit] Power OFF — clearing matrix")
+            print(f"[HomeKit] Power OFF — clearing matrix", flush=True)
             brightness_manager.power_off()
 
     def set_brightness(self, value):
         import brightness_manager
 
-        print(f"[HomeKit] Brightness set to {value}")
+        print(f"[HomeKit] Brightness set to {value}", flush=True)
         self._last_brightness = value
         brightness_manager.set_brightness(value)
 
@@ -54,10 +54,10 @@ class SpoilerModeAccessory(Accessory):
         import spoiler_mode_manager
 
         if self.team:
-            print(f"[HomeKit] Spoiler mode for {self.team} set to {value}")
+            print(f"[HomeKit] Spoiler mode for {self.team} set to {value}", flush=True)
             spoiler_mode_manager.set_team_spoiler_mode(self.team, value)
         else:
-            print(f"[HomeKit] Spoiler mode set to {value}")
+            print(f"[HomeKit] Spoiler mode set to {value}", flush=True)
             spoiler_mode_manager.set_spoiler_mode(value)
 
 
@@ -80,7 +80,7 @@ def run_homekit_service(preferred_teams=None):
         # one; otherwise HAP-python generates one, which is printed below.
         pincode = os.environ.get("HOMEKIT_PINCODE")
         driver = AccessoryDriver(port=51826, pincode=pincode.encode() if pincode else None)
-        print(f"[HomeKit] Setup code (only needed to pair): {driver.state.pincode.decode()}")
+        print(f"[HomeKit] Setup code (only needed to pair): {driver.state.pincode.decode()}", flush=True)
         bridge = Bridge(driver, "MLB Scoreboard")
         bridge.add_accessory(BrightnessAccessory(driver, "Brightness"))
         for team in preferred_teams or []:
@@ -89,7 +89,7 @@ def run_homekit_service(preferred_teams=None):
         driver.add_accessory(bridge)
         keepalive = threading.Thread(target=_mdns_keepalive, args=(driver,), daemon=True)
         keepalive.start()
-        print("[HomeKit] Starting accessory server...")
+        print("[HomeKit] Starting accessory server...", flush=True)
         driver.start()
     except Exception:
         logging.exception("[HomeKit] Accessory server failed — HomeKit control unavailable")
@@ -98,4 +98,4 @@ def run_homekit_service(preferred_teams=None):
 def start_homekit_background_thread(preferred_teams=None):
     thread = threading.Thread(target=run_homekit_service, args=(preferred_teams,), name="HomeKitThread", daemon=True)
     thread.start()
-    print("[HomeKit] Background thread started.")
+    print("[HomeKit] Background thread started.", flush=True)

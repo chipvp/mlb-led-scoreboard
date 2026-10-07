@@ -38,7 +38,7 @@ def set_spoiler_mode(value: bool):
     with _lock:
         _state[_GLOBAL_KEY] = value
     _save_state()
-    print(f'[spoiler_mode_manager] Spoiler mode {"ON" if value else "OFF"}')
+    print(f'[spoiler_mode_manager] Spoiler mode {"ON" if value else "OFF"}', flush=True)
 
 
 def is_team_spoiler_mode(team: str):
@@ -50,7 +50,7 @@ def set_team_spoiler_mode(team: str, value: bool):
     with _lock:
         _state[team] = value
     _save_state()
-    print(f'[spoiler_mode_manager] Spoiler mode for {team} {"ON" if value else "OFF"}')
+    print(f'[spoiler_mode_manager] Spoiler mode for {team} {"ON" if value else "OFF"}', flush=True)
 
 
 def is_spoiler_free_for_team(team: str):
