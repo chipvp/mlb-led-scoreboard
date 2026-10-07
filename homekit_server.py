@@ -1,4 +1,5 @@
 import logging
+import os
 import threading
 from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
@@ -75,7 +76,11 @@ def _mdns_keepalive(driver, interval=20):
 def run_homekit_service(preferred_teams=None):
     logging.basicConfig(level=logging.INFO)
     try:
-        driver = AccessoryDriver(port=51826, pincode=b"031-45-154")
+        # The setup code is only used when pairing a new Home app. Set HOMEKIT_PINCODE (xxx-xx-xxx) to choose
+        # one; otherwise HAP-python generates one, which is printed below.
+        pincode = os.environ.get("HOMEKIT_PINCODE")
+        driver = AccessoryDriver(port=51826, pincode=pincode.encode() if pincode else None)
+        print(f"[HomeKit] Setup code (only needed to pair): {driver.state.pincode.decode()}")
         bridge = Bridge(driver, "MLB Scoreboard")
         bridge.add_accessory(BrightnessAccessory(driver, "Brightness"))
         for team in preferred_teams or []:
