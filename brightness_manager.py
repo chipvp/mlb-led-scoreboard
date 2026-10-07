@@ -58,9 +58,10 @@ def power_off():
 
 
 def power_on(brightness):
-    global _is_off
+    global _is_off, _brightness
     with _lock:
         _is_off = False
+        _brightness = brightness
         if _matrix_ref:
             _matrix_ref.brightness = brightness
     _save_state()

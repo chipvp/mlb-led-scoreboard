@@ -5,6 +5,8 @@ from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
 from pyhap.const import CATEGORY_LIGHTBULB, CATEGORY_SWITCH
 
+import brightness_manager
+
 
 class BrightnessAccessory(Accessory):
     category = CATEGORY_LIGHTBULB
@@ -14,25 +16,26 @@ class BrightnessAccessory(Accessory):
 
         serv_light = self.add_preload_service("Lightbulb", chars=["On", "Brightness"])
 
-        self.char_on = serv_light.configure_char("On", setter_callback=self.set_on)
-        self.char_brightness = serv_light.configure_char("Brightness", setter_callback=self.set_brightness)
-
-        self._last_brightness = 100
+        # Start from what the board is actually doing, so the Home app tile matches after a restart
+        # and turning the light on restores the saved level instead of jumping to 100.
+        self._last_brightness = brightness_manager.get_brightness()
+        self.char_on = serv_light.configure_char(
+            "On", value=not brightness_manager.is_off(), setter_callback=self.set_on
+        )
+        self.char_brightness = serv_light.configure_char(
+            "Brightness", value=self._last_brightness, setter_callback=self.set_brightness
+        )
 
     def set_on(self, value):
-        import brightness_manager
-
         if value:
             print(f"[HomeKit] Power ON — restoring brightness to {self._last_brightness}", flush=True)
             brightness_manager.power_on(self._last_brightness)
         else:
             self._last_brightness = brightness_manager.get_brightness()
-            print(f"[HomeKit] Power OFF — clearing matrix", flush=True)
+            print("[HomeKit] Power OFF — clearing matrix", flush=True)
             brightness_manager.power_off()
 
     def set_brightness(self, value):
-        import brightness_manager
-
         print(f"[HomeKit] Brightness set to {value}", flush=True)
         self._last_brightness = value
         brightness_manager.set_brightness(value)
