@@ -20,6 +20,45 @@ def __lift_black(color):
     return color
 
 
+# The challenge squares must stand out against each team's banner. Below this contrast ratio the configured
+# colors (yellow by default) are swapped for the team's own text color, which is chosen to read on its banner.
+_MIN_CHALLENGE_CONTRAST = 3.0
+# How far a spent challenge's color is mixed toward the banner color (0 = unchanged, 1 = invisible)
+_SPENT_CHALLENGE_FADE = 0.6
+
+
+def _luminance(color):
+    def channel(value):
+        value /= 255
+        return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * channel(color["r"]) + 0.7152 * channel(color["g"]) + 0.0722 * channel(color["b"])
+
+
+def _contrast(a, b):
+    """WCAG contrast ratio between two colors, from 1 (identical) to 21 (black on white)."""
+    lighter, darker = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _fade(color, background, amount):
+    return {key: round(color[key] + (background[key] - color[key]) * amount) for key in ("r", "g", "b")}
+
+
+def abs_challenge_colors(available, used, background, text):
+    """Pick (available, spent) colors for a team's challenge squares.
+
+    The configured colors are used as long as they contrast with the team's banner. Otherwise (yellow on a
+    white banner, say) the available color becomes the team's text color and a spent challenge is that color
+    faded toward the banner, so the two states stay distinguishable.
+    """
+    if _contrast(available, background) >= _MIN_CHALLENGE_CONTRAST:
+        return available, used
+    if _contrast(text, background) <= _contrast(available, background):
+        return available, used
+    return text, _fade(text, background, _SPENT_CHALLENGE_FADE)
+
+
 def render_team_banner(
     canvas,
     layout,
@@ -56,7 +95,11 @@ def render_team_banner(
     # ABS challenges drawn over the background fill but under the team-name
     # and score text, so a misplaced colon never obscures the digits.
     if scoreboard_colors is not None:
-        __render_abs_challenges(canvas, layout, scoreboard_colors, home_team.abs_challenges, away_team.abs_challenges)
+        banners = {"away": away_colors["home"], "home": __lift_black(home_colors["home"])}
+        texts = {"away": away_colors["text"], "home": __lift_black(home_colors["text"])}
+        __render_abs_challenges(
+            canvas, layout, scoreboard_colors, home_team.abs_challenges, away_team.abs_challenges, banners, texts
+        )
 
     home_text = __lift_black(home_colors["text"])
 
@@ -212,11 +255,11 @@ def __draw_filled_box(canvas, coords, color):
         graphics.DrawLine(canvas, x, y + h, x + w, y + h, c)
 
 
-def __render_abs_challenges(canvas, layout, colors, home_remaining, away_remaining):
+def __render_abs_challenges(canvas, layout, colors, home_remaining, away_remaining, banners, texts):
     try:
         abs_coords = layout.coords("teams.abs_challenges")
-        available_color = colors.graphics_color("abs_challenges.available")
-        used_color = colors.graphics_color("abs_challenges.used")
+        configured_available = colors.color("abs_challenges.available")
+        configured_used = colors.color("abs_challenges.used")
     except KeyError:
         return
 
@@ -230,6 +273,9 @@ def __render_abs_challenges(canvas, layout, colors, home_remaining, away_remaini
         cfg = abs_coords.get(side)
         if not cfg:
             continue
+        available, used = abs_challenge_colors(configured_available, configured_used, banners[side], texts[side])
+        available_color = graphics.Color(available["r"], available["g"], available["b"])
+        used_color = graphics.Color(used["r"], used["g"], used["b"])
         squares = cfg["squares"]
         x = cfg["x"]
         size = cfg["size"]
