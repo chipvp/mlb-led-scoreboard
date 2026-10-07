@@ -5,10 +5,11 @@ _IGNORED_TEAMS: set[str] = set()
 
 
 class Team:
-    def __init__(self, abbrev, runs, name, hits, errors, record, special_uniform, abs_challenges):
+    def __init__(self, abbrev, runs, name, hits, errors, record, special_uniform, abs_challenges, short_name=None):
         self.abbrev = abbrev
         self.runs = runs
         self.name = name
+        self.short_name = short_name or name
         self.hits = hits
         self.errors = errors
         self.record = record

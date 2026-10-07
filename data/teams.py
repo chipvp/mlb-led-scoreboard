@@ -72,6 +72,27 @@ _TEAMS = _SPECIAL_TEAMS | {
     158: {"abbr": "MIL", "name": "Brewers"},
 }
 
+# Shorter alternates for teams whose full name is long enough to overlap the
+# runs/hits/errors column when a score reaches double digits. Only teams whose
+# name is 7+ characters need an entry here.
+TEAM_ID_SHORT_NAME = {
+    110: "O's",  # Orioles
+    111: "BoSox",  # Red Sox
+    114: "Guards",  # Guardians
+    115: "Rox",  # Rockies
+    120: "Nats",  # Nationals
+    133: "A's",  # Athletics
+    134: "Bucs",  # Pirates
+    136: "M's",  # Mariners
+    138: "Cards",  # Cardinals
+    141: "Jays",  # Blue Jays
+    143: "Phils",  # Phillies
+    145: "ChiSox",  # White Sox
+    146: "Fish",  # Marlins
+    147: "Yanks",  # Yankees
+    158: "Crew",  # Brewers
+}
+
 # Convenience dictionaries for quick lookups
 TEAM_ID_ABBR = {ID: t["abbr"] for ID, t in _TEAMS.items()}
 TEAM_ID_NAME = {ID: t["name"] for ID, t in _TEAMS.items()}

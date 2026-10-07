@@ -28,6 +28,7 @@ class Scoreboard:
             game.away_record(),
             game.away_special_uniforms(),
             game.abs_challenges_remaining("away") if status.is_live(game.status()) else None,
+            game.away_short_name(),
         )
         self.home_team = Team(
             game.home_abbreviation(),
@@ -38,6 +39,7 @@ class Scoreboard:
             game.home_record(),
             game.home_special_uniforms(),
             game.abs_challenges_remaining("home") if status.is_live(game.status()) else None,
+            game.home_short_name(),
         )
         self.inning = Inning(game)
         self.bases = Bases(game)

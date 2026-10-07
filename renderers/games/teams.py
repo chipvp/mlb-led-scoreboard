@@ -3,6 +3,22 @@ from driver import graphics
 ABSOLUTE = "absolute"
 RELATIVE = "relative"
 
+# Colors at or below this per-channel value are treated as "black"
+_BLACK_THRESHOLD = 15
+# Replacement color: dark enough to be subtle, bright enough to illuminate LEDs
+_BLACK_ADJACENT = {"r": 20, "g": 20, "b": 20}
+
+
+def __lift_black(color):
+    """Replace near-black colors with a dark visible grey.
+
+    Used for the home (bottom) team so its banner doesn't bleed into the
+    black scoreboard area beneath it.
+    """
+    if color["r"] <= _BLACK_THRESHOLD and color["g"] <= _BLACK_THRESHOLD and color["b"] <= _BLACK_THRESHOLD:
+        return _BLACK_ADJACENT
+    return color
+
 
 def render_team_banner(
     canvas,
@@ -27,10 +43,14 @@ def render_team_banner(
     for team in ["away", "home"]:
         # Background
         bg_color = home_colors["home"] if team == "home" else away_colors["home"]
+        if team == "home":
+            bg_color = __lift_black(bg_color)
         __draw_filled_box(canvas, bg_coords[team], bg_color)
 
         # Accent
         accent_color = home_colors["accent"] if team == "home" else away_colors["accent"]
+        if team == "home":
+            accent_color = __lift_black(accent_color)
         __draw_filled_box(canvas, accent_coords[team], accent_color)
 
     # ABS challenges drawn over the background fill but under the team-name
@@ -38,14 +58,14 @@ def render_team_banner(
     if scoreboard_colors is not None:
         __render_abs_challenges(canvas, layout, scoreboard_colors, home_team.abs_challenges, away_team.abs_challenges)
 
-    use_full_team_names = can_use_full_team_names(layout, [home_team, away_team])
+    home_text = __lift_black(home_colors["text"])
 
-    away_name_end_pos = __render_team_text(canvas, layout, away_colors["text"], away_team, "away", use_full_team_names)
-    home_name_end_pos = __render_team_text(canvas, layout, home_colors["text"], home_team, "home", use_full_team_names)
+    away_name_end_pos = __render_team_text(canvas, layout, away_colors["text"], away_team, "away")
+    home_name_end_pos = __render_team_text(canvas, layout, home_text, home_team, "home")
 
     if can_show_record_text(layout, [home_team, away_team]):
         __render_record_text(canvas, layout, away_colors["text"], away_team, "away", away_name_end_pos)
-        __render_record_text(canvas, layout, home_colors["text"], home_team, "home", home_name_end_pos)
+        __render_record_text(canvas, layout, home_text, home_team, "home", home_name_end_pos)
 
     if show_score:
         # Number of characters in each score.
@@ -55,7 +75,7 @@ def render_team_banner(
             "errors": max(len(str(away_team.errors)), len(str(home_team.errors))),
         }
         __render_team_score(canvas, layout, away_colors["text"], away_team, "away", score_spacing)
-        __render_team_score(canvas, layout, home_colors["text"], home_team, "home", score_spacing)
+        __render_team_score(canvas, layout, home_text, home_team, "home", score_spacing)
 
 
 def can_use_full_team_names(layout, teams):
@@ -103,13 +123,34 @@ def can_show_record_text(layout, teams):
     return True
 
 
-def __render_team_text(canvas, layout, text_color, team, homeaway, full_team_names):
+def team_display_name(layout, team):
+    """Pick the text shown for a team's name.
+
+    Full names must be enabled in the layout. When the line score gets high
+    (`shorten_team_name_on_high_line_score`), long names switch to the team's
+    short alternate instead of an abbreviation. Names of exactly 7 characters
+    have little margin, so both runs and hits must reach double digits; longer
+    names (8+) only need one of the two. Shorter names always fit.
+    """
+    if not layout.coords("teams.name").get("full", False):
+        return team.abbrev.upper()
+
+    if layout.coords("teams.line_score").get("shorten_team_name_on_high_line_score", False):
+        if len(team.name) == 7:
+            overflows = team.runs > 9 and team.hits > 9
+        else:
+            overflows = len(team.name) > 7 and (team.runs > 9 or team.hits > 9)
+        if overflows:
+            return team.short_name
+
+    return team.name
+
+
+def __render_team_text(canvas, layout, text_color, team, homeaway):
     text_color_graphic = graphics.Color(text_color["r"], text_color["g"], text_color["b"])
     coords = layout.coords("teams.name.{}".format(homeaway))
     font = layout.font("teams.name.{}".format(homeaway))
-    team_text = "{:3s}".format(team.abbrev.upper()).strip()
-    if full_team_names:
-        team_text = "{:13s}".format(team.name).strip()
+    team_text = "{:13s}".format(team_display_name(layout, team)).strip()
     graphics.DrawText(canvas, font["font"], coords["x"], coords["y"], text_color_graphic, team_text)
 
     return (coords["x"] + (len(team_text) * font["size"]["width"]), coords["y"])
