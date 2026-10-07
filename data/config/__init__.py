@@ -67,6 +67,9 @@ class Config:
 
         self.editorial_blurb = json["editorial_blurb"]
 
+        self.show_yesterday_scores_enabled = json["show_yesterday_scores"]["enabled"]
+        self.show_yesterday_scores_hours_before = json["show_yesterday_scores"]["hours_before_first_game"]
+
         # Misc config options
         self.time_format = json["time_format"]
         self.end_of_day = json["end_of_day"]

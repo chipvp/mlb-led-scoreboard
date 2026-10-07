@@ -32,22 +32,20 @@ class Schedule:
 
     def update(self, force=False) -> UpdateStatus:
         if force or self.__should_update():
-            date = self.config.parse_today().strftime("%Y-%m-%d")
-            LOGGER.debug("Updating schedule for %s", date)
+            date = self.config.parse_today()
+            LOGGER.debug("Updating schedule for %s", date.strftime("%Y-%m-%d"))
             self.starttime = time.time()
-            all_games = []
-            exceptions = 0
-            for league in self.config.leagues:
-                try:
-                    league_games = league.statsapi.schedule(date, **league.schedule_params)
-                    all_games.extend([g | {"league": league} for g in league_games])
-
-                except Exception:
-                    LOGGER.exception(f"Networking error while refreshing {league.name} schedule")
-                    exceptions += 1
+            all_games, exceptions = self.__fetch_games(date)
 
             if exceptions == len(self.config.leagues):
                 return UpdateStatus.FAIL
+
+            if self.__should_show_yesterday(all_games):
+                yesterday = date - datetime.timedelta(days=1)
+                LOGGER.debug("Showing yesterday's scores (%s)", yesterday.strftime("%Y-%m-%d"))
+                yesterdays_games, exceptions = self.__fetch_games(yesterday)
+                if exceptions < len(self.config.leagues):
+                    all_games = yesterdays_games
 
             priority, games = self.__filter_games(all_games)
             games.sort(key=lambda g: g["game_datetime"])
@@ -74,6 +72,34 @@ class Schedule:
             return UpdateStatus.SUCCESS
 
         return UpdateStatus.DEFERRED
+
+    def __fetch_games(self, date) -> tuple[list[dict[str, Any]], int]:
+        """Fetch the schedule for every league. Returns the games and the number of leagues that failed."""
+        games = []
+        exceptions = 0
+        for league in self.config.leagues:
+            try:
+                league_games = league.statsapi.schedule(date.strftime("%Y-%m-%d"), **league.schedule_params)
+                games.extend([g | {"league": league} for g in league_games])
+            except Exception:
+                LOGGER.exception(f"Networking error while refreshing {league.name} schedule")
+                exceptions += 1
+        return games, exceptions
+
+    def __should_show_yesterday(self, todays_games) -> bool:
+        """
+        Whether to show yesterday's games instead of today's. Only until the configured number of hours
+        before the first pitch. A day with no games is never replaced, so a full league off-day still
+        shows the normal off-day screen rather than yesterday forever.
+        """
+        if not self.config.show_yesterday_scores_enabled or not todays_games:
+            return False
+
+        first_pitch = min(
+            datetime.datetime.fromisoformat(game["game_datetime"].replace("Z", "+00:00")) for game in todays_games
+        )
+        cutoff = first_pitch - datetime.timedelta(hours=self.config.show_yesterday_scores_hours_before)
+        return datetime.datetime.now(datetime.timezone.utc) < cutoff
 
     def __should_update(self):
         endtime = time.time()

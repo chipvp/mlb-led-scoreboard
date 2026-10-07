@@ -61,6 +61,10 @@
   "sync_delay_seconds": 0,
   "scrolling_speed": 1,
   "editorial_blurb": true,
+  "show_yesterday_scores": {
+    "enabled": false,
+    "hours_before_first_game": 1
+  },
   "debug": true,
   "demo_date": false,
   "test_config": {

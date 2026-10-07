@@ -437,6 +437,24 @@
       "default": true,
       "x-format": "checkbox"
     },
+    "show_yesterday_scores": {
+      "description": "Keep showing yesterday's final scores until shortly before today's first pitch",
+      "type": "object",
+      "required": ["enabled", "hours_before_first_game"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "x-format": "checkbox"
+        },
+        "hours_before_first_game": {
+          "description": "Switch to today's games this many hours before the first scheduled pitch",
+          "type": "number",
+          "default": 1,
+          "minimum": 0
+        }
+      }
+    },
     "debug": {
       "description": "Should the board enable extra logging?",
       "type": "boolean",

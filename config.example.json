@@ -75,6 +75,10 @@
   ],
   "scrolling_speed": 2,
   "editorial_blurb": true,
+  "show_yesterday_scores": {
+    "enabled": false,
+    "hours_before_first_game": 1
+  },
   "debug": false,
   "demo_date": false
 }
