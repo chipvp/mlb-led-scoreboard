@@ -39,6 +39,18 @@
       },
       "additionalProperties": false
     },
+    "linescore": {
+      "type": "object",
+      "x-format": "grid",
+      "properties": {
+        "background": { "$ref": "#/$defs/color", "default": {"r": 0,   "g": 80,  "b": 0}   },
+        "away":       { "$ref": "#/$defs/color", "default": {"r": 255, "g": 255, "b": 255} },
+        "home":       { "$ref": "#/$defs/color", "default": {"r": 255, "g": 255, "b": 255} },
+        "header":     { "$ref": "#/$defs/color", "default": {"r": 255, "g": 255, "b": 255} },
+        "empty":      { "$ref": "#/$defs/color", "default": {"r": 80,  "g": 140, "b": 80}  }
+      },
+      "additionalProperties": false
+    },
     "inning": {
       "type": "object",
       "x-format": "grid",

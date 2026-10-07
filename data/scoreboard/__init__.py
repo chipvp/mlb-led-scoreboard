@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from data.scoreboard.atbat import AtBat
 from data.scoreboard.bases import Bases
 from data.scoreboard.inning import Inning
+from data.scoreboard.linescore import Linescore
 from data.scoreboard.outs import Outs
 from data.scoreboard.pitches import Pitches
 from data.scoreboard.team import Team
@@ -42,6 +43,7 @@ class Scoreboard:
             game.home_short_name(),
         )
         self.inning = Inning(game)
+        self.linescore = Linescore(game)
         self.bases = Bases(game)
         self.pitches = Pitches(game)
         self.outs = Outs(game)

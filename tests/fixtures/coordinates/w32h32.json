@@ -40,6 +40,9 @@
       "y": 99
     }
   },
+  "linescore": {
+    "enabled": false
+  },
   "inning": {
     "break": {
       "number": {

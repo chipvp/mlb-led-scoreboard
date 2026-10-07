@@ -36,6 +36,27 @@
       "y": 20
     }
   },
+  "linescore": {
+    "enabled": true,
+    "font_name": "tom-thumb",
+    "innings": 9,
+    "column_width": 5,
+    "show_team": true,
+    "team_abbrev_x": 1,
+    "innings_start_x": 15,
+    "background": {
+      "x": 0,
+      "y": 14,
+      "width": 64,
+      "height": 17
+    },
+    "away": {
+      "y": 20
+    },
+    "home": {
+      "y": 26
+    }
+  },
   "inning": {
     "break": {
       "number": {

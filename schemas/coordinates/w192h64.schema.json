@@ -16,6 +16,7 @@
     "defaults":     { "$ref": "./_common.schema.json#/$defs/defaults" },
     "bases":        { "$ref": "./_common.schema.json#/$defs/bases" },
     "final":        { "$ref": "./_common.schema.json#/$defs/final" },
+    "linescore":    { "$ref": "./_common.schema.json#/$defs/linescore" },
     "inning":       { "$ref": "./_common.schema.json#/$defs/inning" },
     "outs":         { "$ref": "./_common.schema.json#/$defs/outs" },
     "atbat":        { "$ref": "./_common.schema.json#/$defs/atbat" },
@@ -44,6 +45,9 @@
       "inning":         { "x": 99,  "y": 61 },
       "scrolling_text": { "x": 0,   "y": 44, "width": 192 },
       "nohit_text":     { "x": 1,   "y": 61 }
+    },
+    "linescore": {
+      "enabled": false
     },
     "inning": {
       "break": {

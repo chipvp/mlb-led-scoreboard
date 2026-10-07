@@ -3,6 +3,7 @@ from data.config.color import Color
 from data.config.layout import Layout
 from data.scoreboard import Scoreboard
 from data.scoreboard.postgame import Postgame
+from renderers.games import linescore as linescorerenderer
 from renderers.games import nohitter
 from bullpen.util import center_text_position, scrolling_text
 
@@ -19,7 +20,16 @@ def render_postgame(
     editorial_blurb,
     is_playoffs,
 ):
-    _render_final_inning(canvas, layout, colors, scoreboard)
+    try:
+        linescore_enabled = layout.coords("linescore").get("enabled", False)
+    except KeyError:
+        linescore_enabled = False
+
+    if linescore_enabled:
+        linescorerenderer.render_linescore(canvas, layout, colors, scoreboard)
+    else:
+        _render_final_inning(canvas, layout, colors, scoreboard)
+
     return _render_decision_scroll(canvas, layout, colors, postgame, scoreboard, text_pos, editorial_blurb, is_playoffs)
 
 

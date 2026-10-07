@@ -16,6 +16,7 @@
     "defaults":     { "$ref": "./_common.schema.json#/$defs/defaults" },
     "bases":        { "$ref": "./_common.schema.json#/$defs/bases" },
     "final":        { "$ref": "./_common.schema.json#/$defs/final" },
+    "linescore":    { "$ref": "./_common.schema.json#/$defs/linescore" },
     "inning":       { "$ref": "./_common.schema.json#/$defs/inning" },
     "outs":         { "$ref": "./_common.schema.json#/$defs/outs" },
     "atbat":        { "$ref": "./_common.schema.json#/$defs/atbat" },
@@ -44,6 +45,18 @@
       "inning":         { "x": 96,  "y": 14 },
       "scrolling_text": { "x": 0,   "y": 30, "width": 128 },
       "nohit_text":     { "x": 85,  "y": 22 }
+    },
+    "linescore": {
+      "enabled": true,
+      "font_name": "4x6",
+      "innings": 9,
+      "column_width": 6,
+      "show_team": false,
+      "innings_start_x": 67,
+      "background": {"x": 64, "y": 0, "width": 63, "height": 20},
+      "header": {"y": 6},
+      "away": {"y": 12},
+      "home": {"y": 18}
     },
     "inning": {
       "break": {

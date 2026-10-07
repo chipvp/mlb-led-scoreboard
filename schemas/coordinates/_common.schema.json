@@ -152,6 +152,23 @@
         "nohit_text":     { "$ref": "#/$defs/point" }
       }
     },
+    "linescore": {
+      "type": "object",
+      "description": "Inning-by-inning run totals shown on the final screen",
+      "properties": {
+        "enabled":         { "type": "boolean" },
+        "font_name":       { "$ref": "#/$defs/font_name" },
+        "innings":         { "type": "integer", "description": "Number of inning columns to show" },
+        "column_width":    { "type": "integer" },
+        "show_team":       { "type": "boolean" },
+        "team_abbrev_x":   { "type": "integer" },
+        "innings_start_x": { "type": "integer" },
+        "background":      { "$ref": "#/$defs/rect" },
+        "header":          { "type": "object", "properties": { "y": { "type": "integer" } } },
+        "away":            { "type": "object", "properties": { "y": { "type": "integer" } } },
+        "home":            { "type": "object", "properties": { "y": { "type": "integer" } } }
+      }
+    },
     "inning": {
       "type": "object",
       "properties": {
