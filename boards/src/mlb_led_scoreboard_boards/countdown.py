@@ -114,12 +114,17 @@ class Renderer(api.PluginRenderer[CountdownData]):
         self.config = config
         self.layout = layout
         self.colors = colors
-        self.reset()
-
-    def reset(self):
         self._index = 0
         self._shown_at: Optional[float] = None
         self._scroll_x: Optional[int] = None
+
+    def reset(self):
+        # Called whenever the screen is switched away from. Move on to the next event, so successive visits
+        # to a short screen cycle through every event instead of always showing the first few.
+        if self._shown_at is not None:
+            self._index += 1
+        self._shown_at = None
+        self._scroll_x = None
 
     def wait_time(self) -> float:
         return self.config.scrolling_speed

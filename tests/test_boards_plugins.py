@@ -145,12 +145,24 @@ class TestCountdownRenderer(unittest.TestCase):
                 seen.append([t for t in drawn_text(gfx) if t in ("A", "B")])
         self.assertEqual(seen, [["A"], ["A"], ["B"]])
 
-    def test_reset_restarts_from_first_event(self):
-        events = [{"label": "A", "date": "06-16"}, {"label": "B", "date": "06-17"}]
-        renderer, data = self.make(events, item_duration=1)
-        with mock.patch.object(countdown.time, "monotonic", side_effect=[0.0, 5.0]):
-            renderer.render(data, fake_canvas(), fake_graphics(), 0)
-            renderer.render(data, fake_canvas(), fake_graphics(), 0)
+    def test_reset_continues_with_the_next_event_on_the_next_visit(self):
+        events = [
+            {"label": "A", "date": "06-16"},
+            {"label": "B", "date": "06-17"},
+            {"label": "C", "date": "06-18"},
+        ]
+        renderer, data = self.make(events, item_duration=100)
+        shown = []
+        for _ in range(4):
+            gfx = fake_graphics()
+            renderer.render(data, fake_canvas(), gfx, 0)
+            shown.append([t for t in drawn_text(gfx) if t in ("A", "B", "C")][0])
+            renderer.reset()
+        self.assertEqual(shown, ["A", "B", "C", "A"])
+
+    def test_reset_before_anything_was_shown_stays_on_first_event(self):
+        renderer, data = self.make([{"label": "A", "date": "06-16"}, {"label": "B", "date": "06-17"}])
+        renderer.reset()
         renderer.reset()
         gfx = fake_graphics()
         renderer.render(data, fake_canvas(), gfx, 0)
