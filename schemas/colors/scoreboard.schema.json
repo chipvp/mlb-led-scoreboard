@@ -214,7 +214,17 @@
           "$ref": "#/$defs/color"
         }
       },
-      "default": {}
+      "default": {
+      "clock": {
+        "time": {"r": 255, "g": 255, "b": 255},
+        "date": {"r": 180, "g": 180, "b": 180}
+      },
+      "countdown": {
+        "number": {"r": 255, "g": 165, "b": 0},
+        "label": {"r": 255, "g": 255, "b": 255},
+        "event": {"r": 255, "g": 255, "b": 255}
+      }
+      }
     },
     "default": {
       "type": "object",

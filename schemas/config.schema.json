@@ -384,7 +384,15 @@
       "additionalProperties": {
         "type": "object"
       },
-      "default": {}
+      "default": {
+        "clock": {
+          "date_format": "%a %b %-d"
+        },
+        "countdown": {
+          "item_duration": 10,
+          "events": []
+        }
+      }
     },
     "time_format": {
       "description": "Whether times should be displayed in 12-hour or 24-hour format",

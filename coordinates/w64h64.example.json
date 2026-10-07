@@ -351,7 +351,38 @@
       "height": 15
     }
   },
-  "plugins": {},
+  "plugins": {
+    "clock": {
+      "time": {
+        "x": 32,
+        "y": 22,
+        "font_name": "6x10"
+      },
+      "date": {
+        "x": 32,
+        "y": 36,
+        "font_name": "4x6"
+      }
+    },
+    "countdown": {
+      "number": {
+        "x": 32,
+        "y": 22,
+        "font_name": "10x20"
+      },
+      "label": {
+        "x": 32,
+        "y": 38,
+        "font_name": "6x10"
+      },
+      "event": {
+        "x": 0,
+        "y": 52,
+        "width": 64,
+        "font_name": "6x10"
+      }
+    }
+  },
   "network": {
     "font_name": "4x6",
     "background": {

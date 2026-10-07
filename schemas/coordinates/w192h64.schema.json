@@ -169,7 +169,17 @@
       "wind":           { "x": 80, "y": 44 },
       "weather_icon":   { "x": 6,  "y": 2, "width": 30, "height": 30, "rescale_icon": 2 }
     },
-    "plugins": {},
+    "plugins": {
+      "clock": {
+        "time": {"x": 96, "y": 22, "font_name": "6x10"},
+        "date": {"x": 96, "y": 36, "font_name": "4x6"}
+      },
+      "countdown": {
+        "number": {"x": 96, "y": 22, "font_name": "10x20"},
+        "label": {"x": 96, "y": 38, "font_name": "6x10"},
+        "event": {"x": 0, "y": 52, "width": 192, "font_name": "6x10"}
+      }
+    },
     "network": {
       "font_name":  "4x6",
       "background": { "width": 7, "height": 7, "x": 121, "y": 57 },

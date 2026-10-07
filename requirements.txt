@@ -7,3 +7,4 @@ bdfparser
 ./standings
 ./news
 HAP-python
+./boards

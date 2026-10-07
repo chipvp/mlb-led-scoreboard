@@ -384,7 +384,38 @@
       "height": 15
     }
   },
-  "plugins": {},
+  "plugins": {
+    "clock": {
+      "time": {
+        "x": 32,
+        "y": 19,
+        "font_name": "9x15B"
+      },
+      "date": {
+        "x": 32,
+        "y": 28,
+        "font_name": "4x6"
+      }
+    },
+    "countdown": {
+      "number": {
+        "x": 32,
+        "y": 15,
+        "font_name": "9x15B"
+      },
+      "label": {
+        "x": 32,
+        "y": 23,
+        "font_name": "4x6"
+      },
+      "event": {
+        "x": 0,
+        "y": 30,
+        "width": 64,
+        "font_name": "4x6"
+      }
+    }
+  },
   "network": {
     "font_name": "4x6",
     "background": {
