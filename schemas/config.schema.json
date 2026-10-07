@@ -43,6 +43,12 @@
               "default": 15.0,
               "minimum": 1
             },
+            "live_preferred": {
+              "description": "Seconds for live games that include a team named in a game rule. Falls back to `live` if omitted",
+              "type": "number",
+              "default": 60.0,
+              "minimum": 1
+            },
             "final": {
               "type": "number",
               "default": 15.0,

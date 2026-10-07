@@ -6,6 +6,7 @@
     "scroll_until_finished": true,
     "rates": {
       "live": 15.0,
+      "live_preferred": 60.0,
       "final": 15.0,
       "pregame": 15.0
     },

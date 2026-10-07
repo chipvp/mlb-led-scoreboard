@@ -181,6 +181,8 @@ class Config:
         self.rotation_rates_live = self.rotation_rates.get("live", DEFAULT_ROTATE_RATES["live"])
         self.rotation_rates_final = self.rotation_rates.get("final", DEFAULT_ROTATE_RATES["final"])
         self.rotation_rates_pregame = self.rotation_rates.get("pregame", DEFAULT_ROTATE_RATES["pregame"])
+        # Optional: a different rate for live games that involve a preferred team. Falls back to the live rate.
+        self.rotation_rates_live_preferred = self.rotation_rates.get("live_preferred", self.rotation_rates_live)
 
     def rotate_rate_for_status(self, game_status: str):
         rotate_rate = self.rotation_rates_live
@@ -189,6 +191,14 @@ class Config:
         if status.is_complete(game_status):
             rotate_rate = self.rotation_rates_final
         return rotate_rate
+
+    def rotate_rate_for_game(self, game):
+        """Like rotate_rate_for_status, but live games with a preferred team use the `live_preferred` rate."""
+        rate = self.rotate_rate_for_status(game.status())
+        is_live_bucket = not status.is_pregame(game.status()) and not status.is_complete(game.status())
+        if is_live_bucket and {game.home_name(), game.away_name()} & set(self.preferred_teams):
+            return self.rotation_rates_live_preferred
+        return rate
 
     def parse_today(self):
         if self.demo_date:

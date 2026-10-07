@@ -63,7 +63,7 @@ class MainRenderer:
             LOGGER.debug("Render thread: showing game %d / %d", len(seen_games), self.data.schedule.num_games())
 
             cond = any_of(
-                timer_cond(self.data.config.rotate_rate_for_status(game.status())),
+                timer_cond(self.data.config.rotate_rate_for_game(game)),
                 self.scrolling_finished_cond(),
             )
             while cond():
