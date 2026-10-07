@@ -134,3 +134,8 @@ team_colors.jpg
 # Editors
 .vscode/
 .claude/
+
+# Fork runtime state
+.brightness_state
+.spoiler_mode_state
+accessory.state

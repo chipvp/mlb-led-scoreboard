@@ -91,9 +91,9 @@ def _make_parser(defaults) -> argparse.ArgumentParser:
     parser.add_argument(
         "--led-slowdown-gpio",
         action="store",
-        help="Slow down writing to GPIO. Range: 0..4. (Default: 1)",
+        help="Slow down writing to GPIO. Range: 0..5. (Default: 1)",
         default=defaults.get("led_slowdown_gpio", None),
-        choices=range(5),
+        choices=range(6),
         type=int,
     )
     parser.add_argument(
