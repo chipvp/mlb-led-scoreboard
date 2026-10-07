@@ -1,69 +1,93 @@
 {
-	"preferred": {
-		"teams": ["Cubs"],
-		"divisions": ["NL Central", "NL Wild Card"]
-	},
-	"news_ticker": {
-		"team_offday": true,
-		"always_display": false,
-		"preferred_teams": true,
-		"display_no_games_live": false,
-		"traderumors": true,
-		"mlb_news": true,
-		"countdowns": true,
-		"date": true,
-		"date_format": "%a, %B %-d"
-	},
-	"standings": {
-		"team_offday": false,
-		"mlb_offday": true,
-		"always_display": false,
-		"display_no_games_live": true
-	},
-	"rotation": {
-		"enabled": true,
-		"scroll_until_finished": true,
-		"only_preferred": false,
-		"only_live": true,
-		"rates": {
-			"live": 15.0,
-			"final": 15.0,
-			"pregame": 15.0
-		},
-		"while_preferred_team_live": {
-			"enabled": false,
-			"during_inning_breaks": false
-		}
-	},
-	"weather": {
-		"apikey": "YOUR_API_KEY_HERE",
-		"location": "Chicago,il,us",
-		"metric_units": false
-	},
-	"time_format": "12h",
-	"end_of_day": "00:00",
-	"show_yesterday_scores": {
-		"enabled": false,
-		"hours_before_first_game": 1
-	},
-	"full_team_names": true,
-	"short_team_names_for_runs_hits": true,
-	"preferred_game_delay_multiplier": 0,
-	"api_refresh_rate" : 5,
-	"preferred_teams_rotation_rate": 60,
-	"standings_news_rotation_rate": 120,
-	"pregame_weather": true,
-	"scrolling_speed": 2,
-	"debug": false,
-	"demo_date": false,
-	"countdown_events": [
-		{ "label": "4th of July",  "date": "07-04" },
-		{ "label": "Christmas",    "date": "12-25" }
-	],
-	"boards": {
-		"offday": ["clock", "countdown", "weather", "standings"],
-		"no_preferred_playing": ["clock", "countdown", "weather", "scores", "standings"],
-		"inning_break": [{"name": "scores", "item_duration": 5}],
-		"rotation_rate": 30
-	}
+  "$schema": "./schemas/config.schema.json",
+  "format": 9.0,
+  "matrix": {},
+  "rotation": {
+    "scroll_until_finished": true,
+    "rates": {
+      "live": 15.0,
+      "live_preferred": 60.0,
+      "final": 15.0,
+      "pregame": 15.0
+    },
+    "screens": [
+      {
+        "kind": "game",
+        "priority": 2,
+        "required_status": "live",
+        "teams": [
+          "Cubs"
+        ]
+      },
+      {
+        "kind": "game",
+        "priority": 1
+      },
+      {
+        "kind": "standings",
+        "seconds": 60,
+        "with_priority": 0
+      },
+      {
+        "kind": "news",
+        "seconds": 60,
+        "with_priority": 0
+      }
+    ]
+  },
+  "news_ticker": {
+    "teams": [
+      "Cubs"
+    ],
+    "traderumors": true,
+    "mlb_news": true,
+    "countdowns": true,
+    "events": [
+      {
+        "text": "New Year's Eve",
+        "date": "12-31",
+        "max_days": 30
+      }
+    ],
+    "date": true,
+    "date_format": "%A, %B %-d"
+  },
+  "weather": {
+    "apikey": "YOUR_API_KEY_HERE",
+    "location": "Chicago,il,us",
+    "metric_units": false,
+    "pregame": true
+  },
+  "standings": {
+    "divisions": [
+      "NL Central",
+      "NL Wild Card"
+    ]
+  },
+  "plugins": {
+    "clock": {
+      "date_format": "%a %b %-d"
+    },
+    "countdown": {
+      "item_duration": 10,
+      "events": []
+    }
+  },
+  "time_format": "12h",
+  "end_of_day": "00:00",
+  "sync_delay_seconds": 0,
+  "api_refresh_rate": 5,
+  "leagues": [
+    "MLB",
+    "WBC",
+    "WPBL"
+  ],
+  "scrolling_speed": 2,
+  "editorial_blurb": true,
+  "show_yesterday_scores": {
+    "enabled": false,
+    "hours_before_first_game": 1
+  },
+  "debug": false,
+  "demo_date": false
 }

@@ -35,7 +35,7 @@ def register_matrix(matrix):
                 _matrix_ref.Clear()
             else:
                 _matrix_ref.brightness = _brightness
-    print(f'[brightness_manager] Matrix registered: {_matrix_ref is not None}')
+    print(f"[brightness_manager] Matrix registered: {_matrix_ref is not None}", flush=True)
 
 
 def get_brightness():
@@ -73,4 +73,4 @@ def set_brightness(value):
         if _matrix_ref and not _is_off:
             _matrix_ref.brightness = value
     _save_state()
-    print(f'[brightness_manager] set_brightness({value})')
+    print(f"[brightness_manager] set_brightness({value})", flush=True)

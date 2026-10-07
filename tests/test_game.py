@@ -5,17 +5,19 @@ Note: we do **NOT** mock statsapi here, as we want to test the actual data retur
 A similar set of tests with stored responses may be separately added in the future.
 """
 
-
 import unittest
-import unittest.mock
 import data.game
-import data.config
-import data.uniforms
-from data.update import UpdateStatus
+from bullpen.api import UpdateStatus
+from collections import namedtuple
+
+from data.leagues import LEAGUES
+
+MockConfig = namedtuple("MockConfig", ["sync_amount", "api_refresh_rate", "uniform_types"])
 
 
 class TestGame(unittest.TestCase):
     game_data = {
+        "league": LEAGUES["MLB"],
         "game_id": 565956,
         "game_date": "2019-08-17",
         "national_broadcasts": ["FS1"],
@@ -23,7 +25,9 @@ class TestGame(unittest.TestCase):
     }
 
     def test_game(self):
-        game = data.game.Game.from_scheduled(self.game_data, delay=0, api_refresh_rate=10)
+        config = MockConfig(sync_amount=0, api_refresh_rate=10, uniform_types={})
+
+        game = data.game.Game.from_scheduled(self.game_data, config)
         self.assertIsNotNone(game)
         self.assertEqual(game.home_name(), "Nationals")
         self.assertEqual(game.home_abbreviation(), "WSH")
@@ -57,8 +61,9 @@ class TestGame(unittest.TestCase):
 
     def test_game_in_middle(self):
         # uses some timestamps to test specific points in the game and our delay logic
+        config = MockConfig(sync_amount=1, api_refresh_rate=10, uniform_types={})
 
-        game = data.game.Game.from_scheduled(self.game_data, delay=1, api_refresh_rate=10)
+        game = data.game.Game.from_scheduled(self.game_data, config)
         self.assertIsNotNone(game)
         self.assertEqual(game.current_delay(), 0)
 
@@ -75,10 +80,9 @@ class TestGame(unittest.TestCase):
         self.assertEqual(game.inning_number(), 1)
         self.assertEqual(game.current_play_result(), "")
         self.assertEqual(game.batter(), "Yelich")
-        self.assertFalse(game.man_on('first'))
-        self.assertEqual(game.last_pitch(), (83.5, 'FS', 'Splitter'))
+        self.assertFalse(game.man_on("first"))
+        self.assertEqual(game.last_pitch(), (83.5, "FS", "Splitter"))
         self.assertEqual(game.current_pitcher_pitch_count(), 11)
-
 
         # Now we force the second 'live' update
         # (it doesn't matter that this fetch will be at the end of the game!)
@@ -87,22 +91,26 @@ class TestGame(unittest.TestCase):
         self.assertEqual(game.status(), "In Progress")
         self.assertEqual(game.inning_number(), 1)
         self.assertEqual(game.current_play_result(), "single")
-        self.assertTrue(game.man_on('first'))
-        self.assertEqual(game.last_pitch(), (88.6, 'FC', 'Cutter'))
+        self.assertTrue(game.man_on("first"))
+        self.assertEqual(game.last_pitch(), (88.6, "FC", "Cutter"))
         self.assertEqual(game.current_pitcher_pitch_count(), 12)
-
 
     def test_special_status_game(self):
         # https://www.mlb.com/news/tigers-nearly-combine-for-no-hitter-against-orioles
+        config = MockConfig(sync_amount=0, api_refresh_rate=10, uniform_types={"city_connect": "City Connect"})
+
         game_data = {
+            "league": LEAGUES["MLB"],
             "game_id": 746423,
             "game_date": "2024-09-13",
-            }
-        game = data.game.Game.from_scheduled(game_data, delay=0, api_refresh_rate=10)
+        }
+        game = data.game.Game.from_scheduled(game_data, config)
         self.assertIsNotNone(game)
         # DET was wearing city connects
-        self.assertEqual(game.home_special_uniforms(), data.uniforms.CITY_CONNECT)
-        self.assertIsNone(game.away_special_uniforms())
+        # This data appears to be deleted from the API
+        # https://statsapi.mlb.com/api/v1/uniforms/game?fields=uniforms,home,away,uniformAssets,uniformAssetText&gamePks=746423
+        # self.assertEqual(game.home_special_uniforms(), "city_connect")
+        # self.assertIsNone(game.away_special_uniforms())
 
         # fifth inning -- too early!
         self.assertEqual(game.update(force=True, testing_params={"timecode": "20240913_234825"}), UpdateStatus.SUCCESS)
@@ -118,7 +126,7 @@ class TestGame(unittest.TestCase):
         self.assertFalse(game.is_perfect_game())
         self.assertTrue(game.is_no_hitter())
         self.assertEqual(game.current_play_result(), "walk")
-        self.assertTrue(game.man_on('first'))
+        self.assertTrue(game.man_on("first"))
 
         # giving up a triple to Gunnar Henderson
         self.assertEqual(game.update(force=True, testing_params={"timecode": "20240914_005908"}), UpdateStatus.SUCCESS)
@@ -128,15 +136,46 @@ class TestGame(unittest.TestCase):
         self.assertEqual(game.inning_number(), 9)
         self.assertEqual(game.outs(), 2)
 
-    # NOTE: it seems like the more detailed reasons may not be stored in the historical data
+    def test_city_connect_uniform(self):
+        # Reds vs Angels 2026-04-11: CIN wore City Connect 2.0
+        config = MockConfig(sync_amount=0, api_refresh_rate=10, uniform_types={"city_connect": "City Connect"})
+
+        game_data = {
+            "league": LEAGUES["MLB"],
+            "game_id": 824535,
+            "game_date": "2026-04-11",
+        }
+        game = data.game.Game.from_scheduled(game_data, config)
+        self.assertIsNotNone(game)
+        self.assertEqual(game.home_special_uniforms(), "city_connect")
+        self.assertIsNone(game.away_special_uniforms())
+
+    def test_special_uniforms(self):
+        # Reds vs Astros 2026-05-08: CIN wore CINCY
+        config = MockConfig(
+            sync_amount=0, api_refresh_rate=10, uniform_types={"cincy": "CINCY", "city_connect": "City Connect"}
+        )
+
+        game_data = {
+            "league": LEAGUES["MLB"],
+            "game_id": 824522,
+            "game_date": "2026-05-08",
+        }
+        game = data.game.Game.from_scheduled(game_data, config)
+        self.assertIsNotNone(game)
+        self.assertEqual(game.home_special_uniforms(), "cincy")
+        self.assertIsNone(game.away_special_uniforms())
 
     def test_weather_delays(self):
         # https://www.northjersey.com/story/sports/mlb/2024/06/26/mets-yankees-subway-series-game-delayed-weather-new-york-postponed/74226587007/
+        config = MockConfig(sync_amount=0, api_refresh_rate=10, uniform_types={})
+
         game_data = {
-            'game_id': 745808,
-            'game_date': "2024-06-26",
+            "league": LEAGUES["MLB"],
+            "game_id": 745808,
+            "game_date": "2024-06-26",
         }
-        game = data.game.Game.from_scheduled(game_data, delay=0, api_refresh_rate=10)
+        game = data.game.Game.from_scheduled(game_data, config)
         self.assertIsNotNone(game)
         self.assertEqual(game.update(force=True, testing_params={"timecode": "20240627_004712"}), UpdateStatus.SUCCESS)
 

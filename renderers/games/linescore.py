@@ -64,21 +64,55 @@ def render_linescore(canvas, layout, colors, scoreboard):
             graphics.DrawText(canvas, font["font"], col_x[i], header["y"], header_color, str(start_inning + i))
 
     _draw_row(
-        canvas, font, away_color, empty_color,
-        coords["away"]["y"], scoreboard.away_team.abbrev,
+        canvas,
+        font,
+        away_color,
+        empty_color,
+        coords["away"]["y"],
+        scoreboard.away_team.abbrev,
         scoreboard.linescore.away_innings,
-        show_team, team_x, col_x, innings_to_show, start_inning, char_width, digit_counts,
+        show_team,
+        team_x,
+        col_x,
+        innings_to_show,
+        start_inning,
+        char_width,
+        digit_counts,
     )
     _draw_row(
-        canvas, font, home_color, empty_color,
-        coords["home"]["y"], scoreboard.home_team.abbrev,
+        canvas,
+        font,
+        home_color,
+        empty_color,
+        coords["home"]["y"],
+        scoreboard.home_team.abbrev,
         scoreboard.linescore.home_innings,
-        show_team, team_x, col_x, innings_to_show, start_inning, char_width, digit_counts,
+        show_team,
+        team_x,
+        col_x,
+        innings_to_show,
+        start_inning,
+        char_width,
+        digit_counts,
     )
 
 
-def _draw_row(canvas, font, color, empty_color, y, abbrev, inning_runs,
-              show_team, team_x, col_x, innings_to_show, start_inning, char_width, digit_counts):
+def _draw_row(
+    canvas,
+    font,
+    color,
+    empty_color,
+    y,
+    abbrev,
+    inning_runs,
+    show_team,
+    team_x,
+    col_x,
+    innings_to_show,
+    start_inning,
+    char_width,
+    digit_counts,
+):
     if show_team:
         graphics.DrawText(canvas, font["font"], team_x, y, color, abbrev[:3].upper())
 

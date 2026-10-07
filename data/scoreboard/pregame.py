@@ -1,13 +1,18 @@
+from typing import TYPE_CHECKING
+
 import tzlocal
-import debug
-from data.game import Game
-from data.time_formats import TIME_FORMAT_12H
+from bullpen.logging import LOGGER
+from bullpen.time_formats import TIME_FORMAT_12H
 
 PITCHER_TBD = "TBD"
 
 
+if TYPE_CHECKING:
+    from data.game import Game
+
+
 class Pregame:
-    def __init__(self, game: Game, time_format):
+    def __init__(self, game: "Game", time_format):
         self.home_team = game.home_abbreviation()
         self.away_team = game.away_abbreviation()
         self.pregame_weather = game.pregame_weather()
@@ -15,7 +20,7 @@ class Pregame:
 
         try:
             self.start_time = self.__convert_time(game.datetime())
-        except:
+        except Exception:
             self.start_time = "TBD"
 
         self.status = game.status()
@@ -29,8 +34,8 @@ class Pregame:
                 losses = game.pitcher_stat(away_id, "losses", "away")
                 era = game.pitcher_stat(away_id, "era", "away")
                 self.away_starter = "{} ({}-{} {} ERA)".format(name, wins, losses, era)
-            except:
-                debug.exception("Error getting away starter stats")
+            except Exception:
+                LOGGER.exception("Error getting away starter stats")
 
         self.home_starter = PITCHER_TBD
         home_id = game.probable_pitcher_id("home")
@@ -41,11 +46,12 @@ class Pregame:
                 losses = game.pitcher_stat(home_id, "losses", "home")
                 era = game.pitcher_stat(home_id, "era", "home")
                 self.home_starter = "{} ({}-{} {} ERA)".format(name, wins, losses, era)
-            except:
-                debug.exception("Error getting home starter stats")
+            except Exception:
+                LOGGER.exception("Error getting away starter stats")
 
         self.national_broadcasts = game.broadcasts()
         self.series_status = game.series_status()
+        self.preview_blurb = game.game_preview_blurb()
 
     def __convert_time(self, game_time_utc):
         """Converts MLB's pregame times (UTC) into the local time zone"""
@@ -55,7 +61,7 @@ class Pregame:
         return game_time_utc.astimezone(tzlocal.get_localzone()).strftime(time_str)
 
     def __str__(self):
-        s = "<{} {}> {} @ {}; {}; {} vs {}; Forecast: {}; TV: {}".format(
+        s = "<{} {}> {} @ {}; {}; {} vs {}; Forecast: {}; TV: {}; Preview: {}".format(
             self.__class__.__name__,
             hex(id(self)),
             self.away_team,
@@ -65,5 +71,6 @@ class Pregame:
             self.home_starter,
             self.pregame_weather,
             self.national_broadcasts,
+            self.preview_blurb,
         )
         return s

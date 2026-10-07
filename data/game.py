@@ -1,15 +1,25 @@
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-import statsapi
 
-import debug
+from bullpen.logging import LOGGER
 from data import teams
-from data.update import UpdateStatus
-from data.delay_buffer import CircularQueue
+from bullpen.api import UpdateStatus
+from data.utils.circular_queue import CircularQueue
 from data.uniforms import Uniforms
+from data.blurbs import Blurbs
+from data.leagues import League, StatAPI
+from data.scoreboard import Scoreboard
+from data.scoreboard.postgame import Postgame
+from data.scoreboard.pregame import Pregame
+from bullpen.time_formats import TIME_FORMAT_24H
 import data.headers
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from config import Config
 
 API_FIELDS = (
     "gameData,game,id,datetime,dateTime,officialDate,flags,noHitter,perfectGame,status,detailedState,abstractGameState,"
@@ -17,68 +27,83 @@ API_FIELDS = (
     + "currentPlay,result,eventType,playEvents,isPitch,pitchData,startSpeed,details,type,code,description,decisions,"
     + "winner,loser,save,id,linescore,innings,num,outs,balls,strikes,note,inningState,currentInning,currentInningOrdinal,offense,"
     + "batter,inHole,onDeck,first,second,third,defense,pitcher,boxscore,teams,runs,players,seasonStats,pitching,wins,"
-    + "losses,saves,era,hits,errors,stats,pitching,numberOfPitches,weather,condition,temp,wind,metaData,timeStamp"
+    + "losses,saves,era,hits,errors,stats,pitching,numberOfPitches,weather,condition,temp,wind,metaData,timeStamp,"
+    + "absChallenges,remaining"
 )
 
 SCHEDULE_API_FIELDS = "dates,date,games,status,detailedState,abstractGameState,reason"
 
 GAME_UPDATE_RATE = 10
 
+
 class Game:
     @staticmethod
-    def from_scheduled(game_data, delay, api_refresh_rate) -> Optional["Game"]:
+    def from_scheduled(game_data: dict[str, Any], config: "Config") -> Optional["Game"]:
         game = Game(
+            game_data["league"],
             game_data["game_id"],
             game_data["game_date"],
             game_data.get("national_broadcasts") or [],
             game_data.get("series_status") or "",
-            delay,
-            api_refresh_rate,
+            config,
         )
         if game.update(True) == UpdateStatus.SUCCESS:
             return game
         return None
 
-    def __init__(self, game_id, date, broadcasts, series_status, preferred_game_delay_multiplier, api_refresh_rate):
+    def __init__(self, league: League, game_id, date, broadcasts, series_status, config: "Config"):
+        self.league: League = league
         self.game_id = game_id
         self.date = date
         self.starttime = time.time()
-        self._data_wait_queue = CircularQueue(preferred_game_delay_multiplier + 1)
-        self._current_data = {}
+        self._data_wait_queue = CircularQueue(config.sync_amount + 1)
+        self._current_data: dict[str, Any] = {}
         self._broadcasts = broadcasts
         self._series_status = series_status
-        self._api_refresh_rate = api_refresh_rate
-        self._status = {}
-        self._uniform_data = Uniforms(game_id)
+        self._api_refresh_rate = config.api_refresh_rate
+        self._status: dict[str, Any] = {}
+        self._uniform_data = Uniforms(league.statsapi, game_id, config.uniform_types)
+        self._blurb_data = Blurbs(league.statsapi, game_id)
 
     def update(self, force=False, testing_params={}) -> UpdateStatus:
         if force or self.__should_update():
             self.starttime = time.time()
             try:
-                debug.log("Fetching data for game %s", str(self.game_id))
-                live_data = statsapi.get("game", {"gamePk": self.game_id, "fields": API_FIELDS} | testing_params, request_kwargs={"headers": data.headers.API_HEADERS} )
+                LOGGER.debug("Fetching data for game %s", str(self.game_id))
+                live_data = self.league.statsapi.get(
+                    "game",
+                    {"gamePk": self.game_id, "fields": API_FIELDS} | testing_params,
+                    request_kwargs={"headers": data.headers.API_HEADERS},
+                )
                 # we add a delay to avoid spoilers. During construction, this will still yield live data, but then
                 # it will recycle that data until the queue is full.
                 self._data_wait_queue.push(live_data)
                 self._current_data = self._data_wait_queue.peek()
-                self._status = self._current_data["gameData"]["status"]
+
+                # this is odd, but if a game is postponed then the 'game' endpoint gets the
+                # rescheduled game, so we need to check the schedule endpoint instead
                 if live_data["gameData"]["datetime"]["officialDate"] > self.date:
-                    # this is odd, but if a game is postponed then the 'game' endpoint gets the rescheduled game
-                    debug.log("Getting game status from schedule for game with strange date!")
+                    LOGGER.debug("Getting game status from schedule for game with strange date!")
                     try:
-                        scheduled = statsapi.get(
-                            "schedule", {"gamePk": self.game_id, "sportId": 1, "fields": SCHEDULE_API_FIELDS}, request_kwargs={"headers": data.headers.API_HEADERS}
+                        scheduled = self.league.statsapi.get(
+                            "schedule",
+                            {"gamePk": self.game_id, "fields": SCHEDULE_API_FIELDS} | self.league.schedule_params,
+                            request_kwargs={"headers": data.headers.API_HEADERS},
                         )
                         self._status = next(
                             g["games"][0]["status"] for g in scheduled["dates"] if g["date"] == self.date
                         )
                     except Exception:
-                        debug.error("Failed to get game status from schedule")
+                        LOGGER.error("Failed to get game status from schedule")
+                else:
+                    self._status = self._current_data["gameData"]["status"]
 
                 self._uniform_data.update()
+                self._blurb_data.update()
+                self.print_game_data_debug()
                 return UpdateStatus.SUCCESS
             except Exception:
-                debug.exception("Networking Error while refreshing the current game data.")
+                LOGGER.exception("Networking Error while refreshing the current game data.")
                 return UpdateStatus.FAIL
         return UpdateStatus.DEFERRED
 
@@ -96,10 +121,8 @@ class Game:
         )
 
     def home_short_name(self):
-        return teams.TEAM_ID_SHORT_NAME.get(
-            self._current_data["gameData"]["teams"]["home"]["id"],
-            self.home_name(),
-        )
+        team_id = self._current_data["gameData"]["teams"]["home"]["id"]
+        return teams.TEAM_ID_SHORT_NAME.get(team_id, self.home_name())
 
     def home_abbreviation(self):
         return teams.TEAM_ID_ABBR.get(
@@ -141,10 +164,8 @@ class Game:
         )
 
     def away_short_name(self):
-        return teams.TEAM_ID_SHORT_NAME.get(
-            self._current_data["gameData"]["teams"]["away"]["id"],
-            self.away_name(),
-        )
+        team_id = self._current_data["gameData"]["teams"]["away"]["id"]
+        return teams.TEAM_ID_SHORT_NAME.get(team_id, self.away_name())
 
     def away_abbreviation(self):
         return teams.TEAM_ID_ABBR.get(
@@ -174,7 +195,7 @@ class Game:
         return self._current_data["liveData"]["linescore"]["teams"]["away"].get("errors", 0)
 
     def inning_runs(self, team):
-        """Returns list of runs per completed inning for 'home' or 'away'. None for incomplete innings."""
+        """Returns list of runs per inning for 'home' or 'away'. None for incomplete innings."""
         try:
             innings = self._current_data["liveData"]["linescore"].get("innings", [])
             return [inning.get(team, {}).get("runs") for inning in innings]
@@ -244,12 +265,12 @@ class Game:
                 stats = self._current_data["liveData"]["boxscore"]["teams"]["home"]["players"][ID]["seasonStats"][
                     "pitching"
                 ]
-            except KeyError:
+            except Exception:
                 try:
                     stats = self._current_data["liveData"]["boxscore"]["teams"]["away"]["players"][ID]["seasonStats"][
                         "pitching"
                     ]
-                except KeyError:
+                except Exception:
                     return ""
 
         return stats[stat]
@@ -257,41 +278,41 @@ class Game:
     def probable_pitcher_id(self, team):
         try:
             return self._current_data["gameData"]["probablePitchers"][team]["id"]
-        except KeyError:
+        except Exception:
             return None
 
     def decision_pitcher_id(self, decision):
         try:
             return self._current_data["liveData"]["decisions"][decision]["id"]
-        except KeyError:
+        except Exception:
             return None
 
     def batter(self):
         try:
             batter_id = self._current_data["liveData"]["linescore"]["offense"]["batter"]["id"]
             return self.boxscore_name(batter_id)
-        except KeyError:
+        except Exception:
             return ""
 
     def in_hole(self):
         try:
             batter_id = self._current_data["liveData"]["linescore"]["offense"]["inHole"]["id"]
             return self.boxscore_name(batter_id)
-        except KeyError:
+        except Exception:
             return ""
 
     def on_deck(self):
         try:
             batter_id = self._current_data["liveData"]["linescore"]["offense"]["onDeck"]["id"]
             return self.boxscore_name(batter_id)
-        except KeyError:
+        except Exception:
             return ""
 
     def pitcher(self):
         try:
             pitcher_id = self._current_data["liveData"]["linescore"]["defense"]["pitcher"]["id"]
             return self.boxscore_name(pitcher_id)
-        except KeyError:
+        except Exception:
             return ""
 
     def balls(self):
@@ -312,7 +333,7 @@ class Game:
                     play["details"]["type"]["code"],
                     play["details"]["type"]["description"],
                 )
-        except (KeyError, IndexError):
+        except Exception:
             return None
 
     def current_pitcher_pitch_count(self):
@@ -323,26 +344,26 @@ class Game:
                 return self._current_data["liveData"]["boxscore"]["teams"]["away"]["players"][ID]["stats"]["pitching"][
                     "numberOfPitches"
                 ]
-            except KeyError:
+            except Exception:
                 return self._current_data["liveData"]["boxscore"]["teams"]["home"]["players"][ID]["stats"]["pitching"][
                     "numberOfPitches"
                 ]
-        except KeyError:
+        except Exception:
             return 0
 
     def note(self):
         try:
             return self._current_data["liveData"]["linescore"]["note"]
-        except KeyError:
+        except Exception:
             return None
 
     def reason(self):
         try:
             return self._status["reason"]
-        except KeyError:
+        except Exception:
             try:
                 return self._status["detailedState"].split(":")[1].strip()
-            except (KeyError, IndexError):
+            except Exception:
                 return None
 
     def broadcasts(self):
@@ -350,6 +371,12 @@ class Game:
 
     def series_status(self):
         return self._series_status
+
+    def abs_challenges_remaining(self, side):
+        try:
+            return self._current_data["gameData"]["absChallenges"][side]["remaining"]
+        except (KeyError, TypeError):
+            return None
 
     def current_play_result(self):
         result = self._current_data["liveData"]["plays"].get("currentPlay", {}).get("result", {}).get("eventType", "")
@@ -360,7 +387,15 @@ class Game:
             result += "_looking"
         return result
 
+    def game_recap_blurb(self):
+        return self._blurb_data.recap()
+
+    def game_preview_blurb(self):
+        return self._blurb_data.preview()
+
     def __should_update(self):
+        if self._status.get("abstractGameState") == "Final":
+            return False
         endtime = time.time()
         time_delta = endtime - self.starttime
         return time_delta >= self._api_refresh_rate
@@ -368,3 +403,15 @@ class Game:
     @staticmethod
     def _format_id(player):
         return player if "ID" in str(player) else "ID" + str(player)
+
+    def __eq__(self, value):
+        if isinstance(value, Game):
+            return self.game_id == value.game_id
+        return False
+
+    def print_game_data_debug(self):
+        LOGGER.debug("Game Data Refreshed: %s", self._current_data["gameData"]["game"]["id"])
+        LOGGER.debug("Game is %d seconds behind", self.current_delay())
+        LOGGER.debug("Pre: %s", Pregame(self, TIME_FORMAT_24H))
+        LOGGER.debug("Live: %s", Scoreboard(self))
+        LOGGER.debug("Final: %s", Postgame(self))

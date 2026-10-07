@@ -1,125 +1,86 @@
 import time
 from typing import Callable, NoReturn
-from data.screens import ScreenType
+from collections.abc import Iterator
+from contextlib import contextmanager
 
+
+import bullpen.api as api
 import brightness_manager
 import spoiler_mode_manager
-import debug
+
+
+from bullpen.logging import LOGGER
 from data import Data, status
 from data.scoreboard import Scoreboard
 from data.scoreboard.postgame import Postgame
 from data.scoreboard.pregame import Pregame
-from renderers import network, offday, standings
+from data.game import Game
+
+from renderers import network
 from renderers.games import game as gamerender
 from renderers.games import irregular
 from renderers.games import postgame as postgamerender
 from renderers.games import pregame as pregamerender
 from renderers.games import teams
 
-STANDINGS_NEWS_SWITCH_TIME = 120  # default fallback; use config.standings_news_rotation_rate when available
-
 
 class MainRenderer:
-    def __init__(self, matrix, data):
+    def __init__(self, matrix, data: Data, plugins: dict[str, api.PluginRenderer]) -> None:
         self.matrix = matrix
-        self.data: Data = data
-        self.is_playoffs = self.data.schedule.date > self.data.headlines.important_dates.playoffs_start_date.date()
+        self.data = data
         self.canvas = matrix.CreateFrameCanvas()
         self.scrolling_text_pos = self.canvas.width
-        self.game_changed_time = time.time()
+        self.scrolling_finished: bool = False
+        self.plugins = plugins
+
         self.animation_time = 0
-        self.standings_stat = "w"
-        self.standings_league = "NL"
-        self._inning_break_boards_shown = None
-        self._no_preferred_boards_shown = False
 
-    def render(self):
-        screen = self.data.get_screen_type()
-        # display the news ticker
-        if screen == ScreenType.ALWAYS_NEWS:
-            self.__draw_news(permanent_cond)
-        # display the standings
-        elif screen == ScreenType.ALWAYS_STANDINGS:
-            self.__render_standings()
-        elif screen == ScreenType.LEAGUE_OFFDAY:
-            self.__render_offday()
-        elif screen == ScreenType.PREFERRED_TEAM_OFFDAY:
-            self.__render_offday()
-        # Playball!
-        else:
-            self.__render_gameday()
-
-    def swap_canvas(self):
-        self.canvas = self.__swap()
-
-    def run_boards(self, board_names):
-        from boards import run_boards
-        run_boards(self, board_names, self.data.config.boards_rotation_rate)
-
-    def __render_offday(self) -> NoReturn:
+    def render(self) -> NoReturn:
         while True:
-            self.run_boards(self.data.config.boards_offday)
+            if self.data.schedule.num_games() > 0:
+                self.__render_games()
 
-    def __render_standings(self) -> NoReturn:
-        self.__draw_standings(permanent_cond)
+            for plugin in self.data.config.rotation_screen_rules.get(self.data.schedule.priority, {}):
+                if t := self.data.config.screen_time_at_priority(plugin, self.data.schedule.priority):
+                    LOGGER.debug("Rotating to plugin %s for %d seconds", plugin, t)
+                    self.__draw_plugin_screen(plugin, any_of(timer_cond(t), self.scrolling_finished_cond()))
 
-        # Out of season off days don't always return standings so fall back on the news renderer
-        debug.error("No standings data.  Falling back to news.")
-        self.__draw_news(permanent_cond)
-
-    # Renders a game screen based on it's status
-    # May also call draw_offday or draw_standings if there are no games
-    def __render_gameday(self) -> NoReturn:
-        refresh_rate = self.data.config.scrolling_speed
+    def __render_games(self):
+        seen_games = set()
         while True:
-            if not self.data.schedule.games_live():
-                if self.data.config.news_no_games and self.data.config.standings_no_games:
-                    switch_time = self.data.config.standings_news_rotation_rate
-                    self.__draw_news(all_of(timer_cond(switch_time), self.no_games_cond))
-                    self.__draw_standings(all_of(timer_cond(switch_time), self.no_games_cond))
-                    continue
-                elif self.data.config.news_no_games:
-                    self.__draw_news(self.no_games_cond)
-                elif self.data.config.standings_no_games:
-                    self.__draw_standings(self.no_games_cond)
+            self.scrolling_text_pos = self.canvas.width
 
-            if self.game_changed_time < self.data.game_changed_time:
-                self.scrolling_text_pos = self.canvas.width
-                self.data.scrolling_finished = not self.data.config.rotation_scroll_until_finished
-                self.game_changed_time = time.time()
+            game = self.data.games.next()
+            if game is None:
+                LOGGER.warning("Render thread: no game to render, sleeping for a bit")
+                time.sleep(1)
+                break
 
-            # Draw the current game
-            self.__draw_game()
+            if len(seen_games) >= self.data.schedule.num_games():
+                break
+            seen_games.add(game.game_id)
 
-            time.sleep(refresh_rate)
+            LOGGER.debug("Render thread: showing game %d / %d", len(seen_games), self.data.schedule.num_games())
+
+            cond = any_of(
+                timer_cond(self.data.config.rotate_rate_for_game(game)),
+                self.scrolling_finished_cond(),
+            )
+            while cond():
+                with frame_pacer(self.data.config.scrolling_speed):
+                    self.data.config.layout.state_for_game(game)
+                    self.__draw_game(game)
 
     # Draws the provided game on the canvas
-    def __draw_game(self):
-        game = self.data.current_game
+    def __draw_game(self, game: Game):
         bgcolor = self.data.config.scoreboard_colors.color("default.background")
         self.canvas.Fill(bgcolor["r"], bgcolor["g"], bgcolor["b"])
         scoreboard = Scoreboard(game)
         layout = self.data.config.layout
         colors = self.data.config.scoreboard_colors
-        preferred = self.data.config.preferred_teams
-        preferred_teams_in_game = [
-            team for team in (scoreboard.home_team.name, scoreboard.away_team.name) if team in preferred
-        ]
-        spoiler_free = any(
-            spoiler_mode_manager.is_spoiler_free_for_team(team) for team in preferred_teams_in_game
-        )
-
-        # Reset once a preferred team is live again, so the boards show once more
-        # the next time we drop out of a preferred team's live game.
-        if self.data.schedule.get_live_preferred_game_indices():
-            self._no_preferred_boards_shown = False
+        spoiler_free = self.__is_spoiler_free(scoreboard)
 
         if status.is_pregame(game.status()):  # Draw the pregame information
-            if self.data.config.boards_no_preferred_playing and not self._no_preferred_boards_shown:
-                if not self.data.schedule.get_live_preferred_game_indices():
-                    self._no_preferred_boards_shown = True
-                    self.run_boards(self.data.config.boards_no_preferred_playing)
-                    return
             self.__max_scroll_x(layout.coords("pregame.scrolling_text"))
             pregame = Pregame(game, self.data.config.time_format)
             pos = pregamerender.render_pregame(
@@ -129,20 +90,23 @@ class MainRenderer:
                 pregame,
                 self.scrolling_text_pos,
                 self.data.config.pregame_weather,
-                self.is_playoffs,
+                self.data.config.editorial_blurb,
+                self.data.config.is_postseason(),
             )
             self.__update_scrolling_text_pos(pos, self.canvas.width)
 
         elif status.is_complete(game.status()):  # Draw the game summary
-            if self.data.config.boards_no_preferred_playing and not self._no_preferred_boards_shown:
-                if not self.data.schedule.get_live_preferred_game_indices():
-                    self._no_preferred_boards_shown = True
-                    self.run_boards(self.data.config.boards_no_preferred_playing)
-                    return
             self.__max_scroll_x(layout.coords("final.scrolling_text"))
             final = Postgame(game)
             pos = postgamerender.render_postgame(
-                self.canvas, layout, colors, final, scoreboard, self.scrolling_text_pos, self.is_playoffs,
+                self.canvas,
+                layout,
+                colors,
+                final,
+                scoreboard,
+                self.scrolling_text_pos,
+                self.data.config.editorial_blurb,
+                self.data.config.is_postseason(),
                 spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, self.canvas.width)
@@ -157,7 +121,7 @@ class MainRenderer:
                 self.__update_scrolling_text_pos(pos, self.canvas.width)
             else:
                 irregular.render_irregular_status(self.canvas, layout, colors, scoreboard, short_text)
-                self.data.scrolling_finished = True
+                self.scrolling_finished = True
 
         else:  # draw a live game
             if scoreboard.homerun() or scoreboard.strikeout() or scoreboard.hit() or scoreboard.walk():
@@ -165,19 +129,19 @@ class MainRenderer:
             else:
                 self.animation_time = 0
 
-            inning_key = (scoreboard.inning.number, scoreboard.inning.state)
             if status.is_inning_break(scoreboard.inning.state):
-                if self.data.config.boards_inning_break and self._inning_break_boards_shown != inning_key:
-                    self._inning_break_boards_shown = inning_key
-                    self.run_boards(self.data.config.boards_inning_break)
                 loop_point = self.data.config.layout.coords("inning.break.due_up")["loop"]
             else:
-                self._inning_break_boards_shown = None
                 loop_point = self.data.config.layout.coords("atbat")["loop"]
 
             self.scrolling_text_pos = min(self.scrolling_text_pos, loop_point)
             pos = gamerender.render_live_game(
-                self.canvas, layout, colors, scoreboard, self.scrolling_text_pos, self.animation_time,
+                self.canvas,
+                layout,
+                colors,
+                scoreboard,
+                self.scrolling_text_pos,
+                self.animation_time,
                 spoiler_free=spoiler_free,
             )
             self.__update_scrolling_text_pos(pos, loop_point)
@@ -189,9 +153,8 @@ class MainRenderer:
             self.data.config.team_colors,
             scoreboard.home_team,
             scoreboard.away_team,
-            self.data.config.full_team_names,
-            self.data.config.short_team_names_for_runs_hits,
             show_score=not status.is_pregame(game.status()) and not spoiler_free,
+            scoreboard_colors=colors,
         )
 
         # Show network issues
@@ -200,87 +163,36 @@ class MainRenderer:
 
         self.canvas = self.__swap()
 
-    def __draw_news(self, cond: Callable[[], bool]):
-        """
-        Draw the news screen for as long as cond returns True
-        """
-        color = self.data.config.scoreboard_colors.color("default.background")
-        while cond():
-            self.canvas.Fill(color["r"], color["g"], color["b"])
+    def __draw_plugin_screen(self, plugin_name: str, cond: Callable[[], bool]) -> None:
+        from driver import graphics
 
-            self.__max_scroll_x(self.data.config.layout.coords("offday.scrolling_text"))
-            pos = offday.render_offday_screen(
-                self.canvas,
-                self.data.config.layout,
-                self.data.config.scoreboard_colors,
-                self.data.weather,
-                self.data.headlines,
-                self.data.config.time_format,
-                self.scrolling_text_pos,
-            )
-            # todo make scrolling_text_pos something persistent/news-specific
-            # if we want to show news as part of rotation?
-            # not strictly necessary but would be nice, avoids only seeing first headline over and over
-            self.__update_scrolling_text_pos(pos, self.canvas.width)
-            # Show network issues
-            if self.data.network_issues:
-                network.render_network_error(self.canvas, self.data.config.layout, self.data.config.scoreboard_colors)
-            self.canvas = self.__swap()
-            time.sleep(self.data.config.scrolling_speed)
+        self.scrolling_text_pos = self.canvas.width
 
-    def __draw_standings(self, cond: Callable[[], bool]):
-        """
-        Draw the standings screen for as long as cond returns True
-        """
-        if not self.data.standings.populated():
-            return
+        renderer = self.plugins[plugin_name]
+        data = self.data.plugin_data[plugin_name]
+        wait_time = renderer.wait_time()
+        while renderer.can_render(data) and cond():
+            with frame_pacer(wait_time):
+                pos = renderer.render(data, self.canvas, graphics, self.scrolling_text_pos)
+                self.__update_scrolling_text_pos(pos, self.canvas.width)
 
-        if self.data.standings.is_postseason() and self.canvas.width <= 32:
-            return
+                # Show network issues
+                if self.data.network_issues:
+                    network.render_network_error(
+                        self.canvas, self.data.config.layout, self.data.config.scoreboard_colors
+                    )
+                self.canvas = self.__swap()
 
-        update = 1
-        while cond():
-            if self.data.standings.is_postseason():
-                standings.render_bracket(
-                    self.canvas,
-                    self.data.config.layout,
-                    self.data.config.scoreboard_colors,
-                    self.data.standings.leagues[self.standings_league],
-                )
-            else:
-                standings.render_standings(
-                    self.canvas,
-                    self.data.config.layout,
-                    self.data.config.scoreboard_colors,
-                    self.data.standings.current_standings(),
-                    self.standings_stat,
-                )
+        renderer.reset()
 
-            if self.data.network_issues:
-                network.render_network_error(self.canvas, self.data.config.layout, self.data.config.scoreboard_colors)
-
-            self.canvas = self.__swap()
-
-            if self.data.standings.is_postseason():
-                if update % 20 == 0:
-                    if self.standings_league == "NL":
-                        self.standings_league = "AL"
-                    else:
-                        self.standings_league = "NL"
-            elif self.canvas.width == 32 and update % 5 == 0:
-                if self.standings_stat == "w":
-                    self.standings_stat = "l"
-                else:
-                    self.standings_stat = "w"
-                    self.data.standings.advance_to_next_standings()
-            elif self.canvas.width > 32 and update % 10 == 0:
-                self.data.standings.advance_to_next_standings()
-
-            time.sleep(1)
-            update = (update + 1) % 100
+    def __is_spoiler_free(self, scoreboard: Scoreboard) -> bool:
+        """True if spoiler mode applies to a preferred team playing in this game."""
+        preferred = self.data.config.preferred_teams
+        teams_in_game = [team.name for team in (scoreboard.home_team, scoreboard.away_team) if team.name in preferred]
+        return any(spoiler_mode_manager.is_spoiler_free_for_team(team) for team in teams_in_game)
 
     def __swap(self):
-        """Swap the canvas, or fill black and skip if the board is powered off."""
+        """Swap the canvas, or fill black first if the board is powered off."""
         if brightness_manager.is_off():
             self.canvas.Fill(0, 0, 0)
         return self.matrix.SwapOnVSync(self.canvas)
@@ -291,22 +203,35 @@ class MainRenderer:
 
     def __update_scrolling_text_pos(self, new_pos, end):
         """Updates the position of scrolling text"""
+        if new_pos is None:
+            self.scrolling_finished = True
+            return
         pos_after_scroll = self.scrolling_text_pos - 1
         if pos_after_scroll + new_pos < 0:
-            self.data.scrolling_finished = True
+            self.scrolling_finished = True
             if pos_after_scroll + new_pos < -10:
                 self.scrolling_text_pos = end
                 return
+        else:
+            self.scrolling_finished = False
         self.scrolling_text_pos = pos_after_scroll
 
-    def no_games_cond(self) -> bool:
-        """A condition that is true only while there are no games live"""
-        return not self.data.schedule.games_live()
+    def scrolling_finished_cond(self) -> Callable[[], bool]:
+        """A condition that is true only while the scrolling text has finished scrolling"""
+        if not self.data.config.rotation_scroll_until_finished:
+            return never_cond
+
+        self.scrolling_finished = False
+
+        def cond():
+            return not self.scrolling_finished
+
+        return cond
 
 
-def permanent_cond() -> bool:
-    """A condition that is always true"""
-    return True
+def never_cond() -> bool:
+    """A condition that is always false"""
+    return False
 
 
 def timer_cond(seconds) -> Callable[[], bool]:
@@ -319,10 +244,28 @@ def timer_cond(seconds) -> Callable[[], bool]:
     return cond
 
 
-def all_of(*conds) -> Callable[[], bool]:
-    """Create a condition that is true if all of the given conditions are true"""
+def any_of(*conds) -> Callable[[], bool]:
+    """Create a condition that is true if any of the given conditions are true"""
 
     def cond():
-        return all(c() for c in conds)
+        return any(c() for c in conds)
 
     return cond
+
+
+@contextmanager
+def frame_pacer(budget: float) -> Iterator[None]:
+    """Hold the wrapped block to at least `budget` seconds.
+
+    Used to ensure consistency (smooth transitions) between rendered frames.
+
+    Stamps a monotonic clock on entry and, on exit, sleeps off any time
+    remaining in the budget. If the block already overran it, no sleep occurs.
+    """
+    start = time.monotonic()
+
+    yield
+
+    elapsed = time.monotonic() - start
+    if elapsed < budget:
+        time.sleep(budget - elapsed)

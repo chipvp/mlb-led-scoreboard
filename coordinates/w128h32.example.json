@@ -1,4 +1,6 @@
 {
+  "$schema": "./../schemas/coordinates/w128h32.schema.json",
+  "format": 9.0,
   "defaults": {
     "font_name": "6x12"
   },
@@ -32,6 +34,29 @@
     "nohit_text": {
       "x": 85,
       "y": 22
+    }
+  },
+  "linescore": {
+    "enabled": true,
+    "font_name": "4x6",
+    "innings": 9,
+    "column_width": 6,
+    "show_team": false,
+    "innings_start_x": 67,
+    "background": {
+      "x": 64,
+      "y": 0,
+      "width": 63,
+      "height": 20
+    },
+    "header": {
+      "y": 6
+    },
+    "away": {
+      "y": 12
+    },
+    "home": {
+      "y": 18
     }
   },
   "inning": {
@@ -287,7 +312,8 @@
       "home": {
         "x": 4,
         "y": 18
-      }
+      },
+      "full": true
     },
     "accent": {
       "away": {
@@ -315,25 +341,44 @@
         "font_name": "4x6",
         "x": 19,
         "y": 17
-      }
-    },
-    "runs": {
-      "runs_hits_errors": {
-        "show": false,
-        "compress_digits": false,
-        "spacing": 3
       },
+      "hide_record_on_high_line_score": false
+    },
+    "line_score": {
       "away": {
-        "x": 63,
+        "x": 60,
         "y": 8
       },
       "home": {
-        "x": 63,
+        "x": 60,
         "y": 18
+      },
+      "show_hits_and_errors": false,
+      "show_abs_challenges": true,
+      "compress_digits": false,
+      "shorten_team_name_on_high_line_score": true,
+      "spacing": 3
+    },
+    "abs_challenges": {
+      "away": {
+        "x": 61,
+        "size": 2,
+        "squares": [
+          2,
+          6
+        ]
+      },
+      "home": {
+        "x": 61,
+        "size": 2,
+        "squares": [
+          12,
+          16
+        ]
       }
     }
   },
-  "offday": {
+  "news": {
     "scrolling_text": {
       "x": 0,
       "y": 30,
@@ -370,27 +415,36 @@
       "height": 15
     }
   },
-  "linescore": {
-    "enabled": true,
-    "font_name": "4x6",
-    "innings": 9,
-    "column_width": 6,
-    "show_team": false,
-    "innings_start_x": 67,
-    "background": {
-      "x": 64,
-      "y": 0,
-      "width": 63,
-      "height": 20
+  "plugins": {
+    "clock": {
+      "time": {
+        "x": 64,
+        "y": 19,
+        "font_name": "9x15B"
+      },
+      "date": {
+        "x": 64,
+        "y": 28,
+        "font_name": "4x6"
+      }
     },
-    "header": {
-      "y": 6
-    },
-    "away": {
-      "y": 12
-    },
-    "home": {
-      "y": 18
+    "countdown": {
+      "number": {
+        "x": 64,
+        "y": 15,
+        "font_name": "9x15B"
+      },
+      "label": {
+        "x": 64,
+        "y": 23,
+        "font_name": "4x6"
+      },
+      "event": {
+        "x": 0,
+        "y": 30,
+        "width": 128,
+        "font_name": "4x6"
+      }
     }
   },
   "network": {
@@ -404,36 +458,6 @@
     "text": {
       "x": 125,
       "y": 31
-    }
-  },
-  "clock": {
-    "time": {
-      "x": 64,
-      "y": 19,
-      "font_name": "9x15B"
-    },
-    "date": {
-      "x": 64,
-      "y": 28,
-      "font_name": "4x6"
-    }
-  },
-  "countdown": {
-    "number": {
-      "x": 64,
-      "y": 15,
-      "font_name": "9x15B"
-    },
-    "label": {
-      "x": 64,
-      "y": 23,
-      "font_name": "4x6"
-    },
-    "event": {
-      "x": 0,
-      "y": 30,
-      "width": 128,
-      "font_name": "4x6"
     }
   }
 }

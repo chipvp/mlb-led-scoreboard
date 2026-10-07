@@ -1,36 +1,32 @@
 #!/bin/bash
 
 # Redirect output to a logfile
-exec > >(tee -a logs/mlbled.log) 2>&1
+exec > >(tee -a logs/install.log) 2>&1
 
 SKIP_PYTHON=false
 SKIP_CONFIG=false
-SKIP_MATRIX=false
-NO_SUDO=false
+SKIP_OPTIMIZATIONS=false
+SKIP_SUDO=false
 SKIP_VENV=false
-DRIVER_SHA=d8778b5 # until https://github.com/hzeller/rpi-rgb-led-matrix/pull/1818 is merged
-FORCE=false
+SKIP_DRIVER=false
 
 usage() {
     cat <<USAGE
-    Usage: ./install.sh [-a | --skip-all] [-c | --skip-config] [-m | --skip-matrix] 
-                        [-p | --skip-python] [-v | --no-venv] [-e | --emulator-only] 
-                        [-d <branch_or_commit> | --driver <branch_or_commit>] 
-                        [-f | --force] [-h | --help]
+    Usage: ./install.sh [-a | --skip-all] [-c | --skip-config] [-o | --skip-optimizations]
+                        [-p | --skip-python] [-v | --no-venv] [-s | --no-sudo] [-e | --emulator-only]
+                        [-h | --help]
 
     Options:
-        -a, --skip-all          Skip all dependencies and config installation (equivalent to -c -p -m).
-        -c, --skip-config       Skip updating JSON configuration files.
-        -m, --skip-matrix       Skip building matrix driver dependency. Video display will default to emulator mode.
-        -p, --skip-python       Skip Python 3 installation. Requires manual Python 3 setup if not already installed.
+        -a, --skip-all              Skip all dependencies and config installation (equivalent to -c -o -p).
+        -c, --skip-config           Skip updating JSON configuration files.
+        -o, --skip-optimizations    Skip optimizations for matrix display.
+        -p, --skip-python           Skip Python 3 installation. Requires manual Python 3 setup if not already installed.
 
-        -v, --no-venv           Do not create a virtual environment for the dependencies.
-        -e, --emulator-only     Do not install dependencies under sudo. Skips building matrix dependencies (equivalent to -m)
-        -d, --driver            Specify a branch name or commit SHA for the rpi-rgb-led-matrix library. (Defaults to "$DRIVER_SHA")
+        -v, --no-venv               Do not create a virtual environment for the dependencies.
+        -s, --no-sudo               Do not install dependencies under sudo. Useful for emulation-only installation.
+        -e, --emulator-only         Do not install RPI matrix drivers. Video display will default to software emulation.
 
-        -f, --force             Try to skip most errors and force install. May be able to recover from previous installer errors.
-
-        -h, --help              Display this help message
+        -h, --help                  Display this help message
 USAGE
     exit 1
 }
@@ -48,10 +44,6 @@ handle_error() {
     echo "  Ensure you are installing from the project directory with:"                        >&2
     echo                                                                                       >&2
     echo "      sudo ./install.sh"                                                             >&2
-    echo                                                                                       >&2
-    echo "  You may be able to bypass this error by reinstalling with the --force flag"        >&2
-    echo                                                                                       >&2
-    echo "      sudo ./install.sh --force"                                                     >&2
     echo                                                                                       >&2
     echo "  Debug information:"                                                                >&2
     echo "      | exit_code:   $exit_code"                                                     >&2
@@ -74,32 +66,29 @@ while [ $# -gt 0 ]; do
         SKIP_CONFIG=true
         shift
         ;;
-    -m | --skip-matrix)
-        SKIP_MATRIX=true
+    -o | --skip-optimize)
+        SKIP_OPTIMIZATIONS=true
         shift
         ;;
     -a | --skip-all)
         SKIP_CONFIG=true
-        SKIP_MATRIX=true
+        SKIP_OPTIMIZATIONS=true
         SKIP_PYTHON=true
         SKIP_VENV=true
         shift
         ;;
     -e | --emulator-only)
-        SKIP_MATRIX=true
-        NO_SUDO=true
+        SKIP_DRIVER=true
+        SKIP_OPTIMIZATIONS=true
+        shift
+        ;;
+    -s | --no-sudo)
+        SKIP_OPTIMIZATIONS=true
+        SKIP_SUDO=true
         shift
         ;;
     -v | --no-venv)
         SKIP_VENV=true
-        shift
-        ;;
-    -d | --driver)
-        DRIVER_SHA="$2"
-        shift 2
-        ;;
-    -f | --force)
-        FORCE=true
         shift
         ;;
     -h | --help)
@@ -111,11 +100,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ "$FORCE" = false ]; then
-    set -Eeuo pipefail
+set -Eeuo pipefail
 
-    trap handle_error ERR
-fi
+trap handle_error ERR
 
 if [ "$SKIP_PYTHON" = false ]; then
     echo
@@ -148,7 +135,7 @@ echo
 
 if [ "$SKIP_VENV" = false ]; then
     echo "Creating virtual environment..."
-    if [ "$NO_SUDO" = false ]; then
+    if [ "$SKIP_SUDO" = false ]; then
         sudo python3 -m venv ./venv
     else
         python3 -m venv ./venv
@@ -158,7 +145,7 @@ if [ "$SKIP_VENV" = false ]; then
     if ! grep -q "#\!/" main.py; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' '1i\'$'\n''#!'"$(which python3)"$'\n' main.py
-        elif [ "$NO_SUDO" = false ]; then
+        elif [ "$SKIP_SUDO" = false ]; then
             sed -i "1i #\!/usr/bin/sudo $(which python3)" main.py
         else
             sed -i "1i #\!$(which python3)" main.py
@@ -176,40 +163,27 @@ if [ "$SKIP_VENV" = false ]; then
 fi
 PYTHON=$(which python3)
 
-if [ "$NO_SUDO" = false ]; then
+if [ "$SKIP_SUDO" = false ]; then
     sudo "$PYTHON" -m pip install -r requirements.txt
 else
     "$PYTHON" -m pip install -r requirements.txt
 fi
 
-if [ "$SKIP_MATRIX" = false ]; then
-    echo "Running rgbmatrix installation..."
-    sudo apt-get install -y make gcc g++
-    mkdir submodules -p
-    cd submodules
-
-    if [ -d matrix ]; then
-        echo "'matrix' directory already exists. Assuming rpi-rgb-led-matrix is already installed."
+# rpi-rgb-led-matrix hard-codes its version string, this ensures pip doesn't skip recompiling the bindings due to the version never changing
+if [ "$SKIP_DRIVER" = false ]; then
+    echo
+    echo "------------------------------------"
+    echo "  Rebuilding RGB matrix binding..."
+    echo "------------------------------------"
+    echo
+    if [ "$SKIP_SUDO" = false ]; then
+        sudo "$PYTHON" -m pip install --force-reinstall --no-cache-dir --no-deps -r requirements.rpi.txt
     else
-        git clone https://github.com/hzeller/rpi-rgb-led-matrix.git matrix
+        "$PYTHON" -m pip install --force-reinstall --no-cache-dir --no-deps -r requirements.rpi.txt
     fi
+fi
 
-    cd matrix
-    # Checkout the branch or commit specified for rpi-rgb-led-matrix
-    git fetch
-    git checkout $DRIVER_SHA
-
-    # If we're on 'detached HEAD' state, git pull has a non-zero exit and fails
-    # Current branch will be a zero-length string (-z) in this state, so test (-n) for non-empty string
-    if [ -n "$(git branch --show-current)" ]; then
-        git pull
-    fi
-
-    make build-python PYTHON="$PYTHON" CYTHON=cython3
-    sudo make install-python PYTHON="$PYTHON"
-
-    cd ../..
-
+if [ "$SKIP_OPTIMIZATIONS" = false ]; then
     echo "------------------------------------"
     echo "  Checking for snd_bcm2835"
     echo "------------------------------------"
@@ -270,7 +244,7 @@ else
 
     echo
     if [ "$answer" != "${answer#[Yy]}" ] ;then
-        python3 validate_config.py
+        "$PYTHON" validate_config.py
     fi
     echo
 fi

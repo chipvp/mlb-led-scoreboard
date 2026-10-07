@@ -1,4 +1,5 @@
-from data.game import Game
+from typing import TYPE_CHECKING
+
 from data.scoreboard.atbat import AtBat
 from data.scoreboard.bases import Bases
 from data.scoreboard.inning import Inning
@@ -6,8 +7,10 @@ from data.scoreboard.linescore import Linescore
 from data.scoreboard.outs import Outs
 from data.scoreboard.pitches import Pitches
 from data.scoreboard.team import Team
-from data import plays
+from data import plays, status
 
+if TYPE_CHECKING:
+    from data.game import Game
 
 
 class Scoreboard:
@@ -16,20 +19,36 @@ class Scoreboard:
     including runners on base, balls, strikes, and outs.
     """
 
-    def __init__(self, game: Game):
+    def __init__(self, game: "Game"):
         self.away_team = Team(
-            game.away_abbreviation(), game.away_score(), game.away_name(), game.away_short_name(), game.away_hits(), game.away_errors(), game.away_record(), game.away_special_uniforms()
+            game.away_abbreviation(),
+            game.away_score(),
+            game.away_name(),
+            game.away_hits(),
+            game.away_errors(),
+            game.away_record(),
+            game.away_special_uniforms(),
+            game.abs_challenges_remaining("away") if status.is_live(game.status()) else None,
+            game.away_short_name(),
         )
         self.home_team = Team(
-            game.home_abbreviation(), game.home_score(), game.home_name(), game.home_short_name(), game.home_hits(), game.home_errors(), game.home_record(), game.home_special_uniforms()
+            game.home_abbreviation(),
+            game.home_score(),
+            game.home_name(),
+            game.home_hits(),
+            game.home_errors(),
+            game.home_record(),
+            game.home_special_uniforms(),
+            game.abs_challenges_remaining("home") if status.is_live(game.status()) else None,
+            game.home_short_name(),
         )
         self.inning = Inning(game)
+        self.linescore = Linescore(game)
         self.bases = Bases(game)
         self.pitches = Pitches(game)
         self.outs = Outs(game)
         self.game_status = game.status()
         self.atbat = AtBat(game)
-        self.linescore = Linescore(game)
 
         self.note = game.note()
 

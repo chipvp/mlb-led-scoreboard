@@ -2,109 +2,72 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+This is a fork of [MLB-LED-Scoreboard](https://github.com/MLB-LED-Scoreboard/mlb-led-scoreboard) (`upstream` remote), rebased onto upstream v9. See "Fork customizations" below for what is ours.
+
 ## Commands
 
-**Run (hardware):**
-```bash
-sudo ./main.py
-```
+**Run (hardware):** `sudo ./main.py`
 
-**Run (emulator, no hardware needed):**
-```bash
-./main.py --emulated
-```
+**Run (emulator, no hardware needed):** `./main.py --emulated`
 
-**Run with custom config:**
-```bash
-./main.py --config=custom_config  # omit .json extension
-```
+**Run with custom config:** `./main.py --config=custom_config` (omit `.json`). Board dimensions come from CLI args (`--led-rows`, `--led-cols`).
 
-**Run tests:**
-```bash
-RGBME_SUPPRESS_ADAPTER_LOAD_ERRORS=1 python -m unittest
-```
+**Run tests:** `RGBME_SUPPRESS_ADAPTER_LOAD_ERRORS=1 python -m unittest`
 
-**Lint:**
-```bash
-flake8  # max line length 120, configured in .flake8
-```
+**Format:** `black -l 120 .` (upstream code is black-clean)
 
-**Validate config:**
-```bash
-python validate_config.py
-```
+**Regenerate example files:** `python -m schemas --overwrite`. Check without writing: `python -m schemas --check`
 
-**Check version:**
-```bash
-python3 version.py
-```
+**Validate/upgrade a config:** `python validate_config.py`. A v8 config is migrated with `upgrade_to_v9.py`, which drops custom keys, so merge them by hand.
 
-**Install (Raspberry Pi):**
-```bash
-sudo ./install.sh [--emulator-only] [--skip-matrix] [--skip-python] [--no-venv]
-```
+**Install:** `pip install -r requirements.txt -r requirements.dev.txt` (inside a venv). The local packages `./bullpen`, `./standings`, `./news` and `./boards` are installed from `requirements.txt`. Plugins are discovered through entry points, so a new or changed plugin package needs a reinstall. On a Pi use `sudo ./install.sh`.
 
 ## Architecture
 
-The project follows a **data-fetching + render loop** architecture with two main threads:
+Two threads, as in upstream:
 
-- **Main thread**: Manages data refresh loops (polling MLB StatsAPI every 0.5–30s depending on game state), determines which screen type to show, and rotates through games.
-- **Render thread** (`MainRenderer` in `renderers/main.py`): Continuously draws to the LED matrix, delegating to screen-specific renderers.
+- **Main thread** (`main.py`): loops `data.refresh_schedule()`, `data.refresh_game()` and `data.refresh_plugin(name)`.
+- **Render thread** (`MainRenderer` in `renderers/main.py`): endless loop. Draws the games at the current priority, then runs each plugin screen configured for that priority.
 
-### Data Flow
+Screen routing is **priority based**, not `ScreenType` based. `rotation.screens` in `config.json` is a list of rules. `game` and `secondary_game` rules (optionally filtered by `teams` and `required_status`) pick which games show, and the highest matching priority wins. `time` rules add a priority at certain times of day. Any other `kind` is a plugin screen (`news`, `standings`, `clock`, `countdown`, ...) with `seconds` and `with_priority`. At least one screen must be at priority 0, which is what shows when there are no games.
 
-```
-MLB StatsAPI → data/__init__.py (Data class) → renderers/main.py (MainRenderer) → LED matrix
-```
+### Plugins (`bullpen/`)
 
-The `Data` class (`data/__init__.py`) is the central orchestrator — it holds the schedule, current game, standings, weather, and headlines. The main loop calls `data.refresh_game()` and similar methods, then signals the render thread.
+Plugins register through the entry point group `bullpen.mlbled.plugin`, and only plugins named in a rotation rule are loaded (`data/plugins.py`). Each plugin provides `(Config, Data, Renderer)`, subclassing `bullpen.api.PluginConfig`, `PluginData` and `PluginRenderer`.
 
-### Key Components
+- Settings come from `plugins.<name>` in `config.json`; layout and colors from `plugins.<name>` in the coordinates and colors files. `news` and `standings` are the legacy exceptions that use top-level keys.
+- The host draws the network-error icon and swaps the canvas. A plugin must fill its own background.
+- In-repo plugins: `news/`, `standings/` (upstream) and `boards/` (ours).
 
-**`data/`** — All data fetching and state:
-- `__init__.py`: `Data` class; orchestrates fetching and exposes state to renderers
-- `game.py`: Game model (score, status, pitchers, at-bat info)
-- `schedule.py`: Today's list of games
-- `standings.py`: Division/wildcard standings
-- `scoreboard/`: Intermediate models for pregame, live, and postgame screen content
+### Configuration is schema-first
 
-**`renderers/`** — All display logic:
-- `main.py`: `MainRenderer` — main render loop, picks which renderer to invoke
-- `games/`: Renderers for live (`game.py`), pregame (`pregame.py`), and postgame (`postgame.py`) states
-- `standings.py`, `offday.py`, `scrollingtext.py`, `network.py`: Other screen types
+`schemas/*.schema.json` define every config, coordinates and colors file, and `config.example.json`, `coordinates/*.example.json` and `colors/*.example.json` are **generated** from the schema defaults. Never hand-edit an example. Change the schema default and run `python -m schemas --overwrite`.
 
-**`driver/`** — Hardware abstraction layer:
-- Wraps `rgbmatrix` (real hardware) and `RGBMatrixEmulator` (software emulator)
-- Falls back to emulator if hardware driver fails to load — this is how tests run
+Custom `colors/scoreboard.json`, `colors/teams.json`, `coordinates/wXhY.json` and `config.json` are gitignored and are merged on top of the examples. Tests use `tests/fixtures/` instead, where color values are the marker `1,2,3` and coordinates are `99`, so a new color block needs a matching entry in `tests/fixtures/colors/scoreboard.json`.
 
-**`data/config/`** — Configuration management:
-- Parses `config.json` (user creates from `config.example.json`)
-- Manages layout positioning (from `coordinates/` JSON files) and color themes (from `colors/` JSON files)
+### Key modules
 
-**`homekit_server.py` / `brightness_manager.py`** — Recent HomeKit integration for controlling power/brightness via Apple Home.
+- `data/schedule.py`: fetches every league, filters games by priority, keeps a sync-delay queue.
+- `data/game.py`: game model. `data/scoreboard/`: per-screen models built from a game.
+- `renderers/games/`: live (`game.py`), pregame, postgame, `teams.py` (banner), `linescore.py`.
+- `data/config/`: `Config`, `Layout` and `Color`, plus the rule parsers.
+- `cli.py`: argument parsing. `driver/`: wraps `rgbmatrix` and falls back to `RGBMatrixEmulator`.
 
-### Screen Type Routing
+## Fork customizations
 
-`main.py` determines one of several `ScreenType` values and launches the corresponding refresh loop:
-- `GAMEDAY`: Live games available; rotates through them
-- `PREFERRED_TEAM_OFFDAY`: Preferred team has no game; optionally shows news/standings
-- `LEAGUE_OFFDAY`: No MLB games today
-- `ALWAYS_NEWS` / `ALWAYS_STANDINGS`: Config-forced modes
+Keep these when merging upstream:
 
-### Configuration
+- **Linescore** (`data/scoreboard/linescore.py`, `renderers/games/linescore.py`): inning-by-inning runs on the postgame screen, enabled per size in `coordinates` (`linescore.enabled`). Colors under `linescore.*`.
+- **Short team names** (`TEAM_ID_SHORT_NAME` in `data/teams.py`, `team_display_name` in `renderers/games/teams.py`): with `teams.line_score.shorten_team_name_on_high_line_score`, long names switch to a short alternate at double-digit runs/hits (7-character names need both). Also lifts a near-black home banner to dark grey.
+- **`show_yesterday_scores`** (`data/schedule.py`): shows yesterday's finals until `hours_before_first_game` before today's first pitch. A day with no games is never replaced.
+- **Extra innings**: the postgame scroll starts with `Final/N` when the game didn't end in the 9th.
+- **HomeKit / brightness / spoiler mode** (`homekit_server.py`, `brightness_manager.py`, `spoiler_mode_manager.py`): a HomeKit bridge with a brightness light, a global "Spoiler Mode" switch and one switch per preferred team. `Config.preferred_teams` is derived from the `teams` named in game rules. `MainRenderer.__swap` keeps the board black while powered off, and `__is_spoiler_free` hides live and postgame content and the score. State lives in `.brightness_state`, `.spoiler_mode_state` and `accessory.state` (gitignored; `accessory.state` is the HomeKit pairing, so don't delete it). The setup code comes from `HOMEKIT_PINCODE` or is generated and printed at startup.
+- **Clock and countdown plugins** (`boards/`): add `{"kind": "clock"|"countdown", "seconds": N, "with_priority": P}` to `rotation.screens`. Countdown takes `plugins.countdown.events` (`label` with optional `[red]...[/]` or `[#rrggbb]` color tags, and `date` as `MM-DD`, `MM-DD-YY` or `YYYY-MM-DD`) and `item_duration`. Set the rule's `seconds` to about events x `item_duration`.
+- **`rotation.rates.live_preferred`** (`Config.rotate_rate_for_game`): seconds per live game that includes a team named in a game rule (v8 used 60s for preferred teams). Falls back to `rates.live` when omitted.
+- **`--led-slowdown-gpio`** accepts 0-5 (`cli.py`).
 
-Copy `config.example.json` → `config.json`. Key settings:
-- `preferred.teams`: Your team(s) — affects rotation priority and offday behavior
-- `rotation.rates`: How long each game is shown (seconds) per status (live/pregame/final)
-- `api_refresh_rate`: MLB API poll interval (minimum 3s)
-- `demo_date`: Set to `"YYYY-MM-DD"` to replay a historical date
-- `weather.apikey`: OpenWeatherMap API key for weather display
-- Board dimensions come from CLI args (`--led-rows`, `--led-cols`), not config.json
+The v8 fork's `boards` contexts (`offday`, `no_preferred_playing`, `inning_break`) are gone: use priorities instead. `fork-v8-final` is the tag of the last v8 commit.
 
-### Coordinates & Colors
+## Tests
 
-Layout positions for different board sizes live in `coordinates/` as JSON files (named by dimension, e.g., `w64h32.json`). Team colors live in `colors/`. Both are loaded at startup by the config system and can be customized without touching Python code.
-
-### Tests
-
-Tests live in `tests/` and cover game data, schedule, standings, config validation, fonts, colors, and data freshness. They run entirely in emulator mode — no hardware required. The env var `RGBME_SUPPRESS_ADAPTER_LOAD_ERRORS=1` suppresses expected warnings during test runs.
+Tests live in `tests/`, plus `standings/tests/`. They run in emulator mode and need no hardware. Use `tests/helpers.py::make_test_config` to build a `Config` against `tests/fixtures/`. `tests/test_schedule.py` and `tests/test_data_up_to_date.py` call the live MLB API, so they need network access.

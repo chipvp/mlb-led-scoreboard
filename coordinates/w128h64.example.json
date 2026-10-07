@@ -1,4 +1,6 @@
 {
+  "$schema": "./../schemas/coordinates/w128h64.schema.json",
+  "format": 9.0,
   "defaults": {
     "font_name": "7x13"
   },
@@ -33,6 +35,9 @@
       "x": 1,
       "y": 61
     }
+  },
+  "linescore": {
+    "enabled": false
   },
   "inning": {
     "break": {
@@ -281,7 +286,8 @@
         "font_name": "9x18B",
         "x": 4,
         "y": 29
-      }
+      },
+      "full": true
     },
     "record": {
       "enabled": false,
@@ -293,27 +299,46 @@
       "home": {
         "x": 30,
         "y": 29
-      }
-    },
-    "runs": {
-      "runs_hits_errors": {
-        "show": true,
-        "compress_digits": true,
-        "spacing": 5
       },
+      "hide_record_on_high_line_score": false
+    },
+    "line_score": {
       "away": {
         "font_name": "9x18B",
-        "x": 126,
+        "x": 124,
         "y": 13
       },
       "home": {
         "font_name": "9x18B",
-        "x": 126,
+        "x": 124,
         "y": 29
+      },
+      "show_hits_and_errors": true,
+      "show_abs_challenges": true,
+      "compress_digits": true,
+      "shorten_team_name_on_high_line_score": true,
+      "spacing": 5
+    },
+    "abs_challenges": {
+      "away": {
+        "x": 125,
+        "size": 3,
+        "squares": [
+          4,
+          9
+        ]
+      },
+      "home": {
+        "x": 125,
+        "size": 3,
+        "squares": [
+          20,
+          25
+        ]
       }
     }
   },
-  "offday": {
+  "news": {
     "scrolling_text": {
       "x": 0,
       "y": 60,
@@ -351,6 +376,38 @@
       "rescale_icon": 2
     }
   },
+  "plugins": {
+    "clock": {
+      "time": {
+        "x": 64,
+        "y": 22,
+        "font_name": "6x10"
+      },
+      "date": {
+        "x": 64,
+        "y": 36,
+        "font_name": "4x6"
+      }
+    },
+    "countdown": {
+      "number": {
+        "x": 64,
+        "y": 22,
+        "font_name": "10x20"
+      },
+      "label": {
+        "x": 64,
+        "y": 38,
+        "font_name": "6x10"
+      },
+      "event": {
+        "x": 0,
+        "y": 52,
+        "width": 128,
+        "font_name": "6x10"
+      }
+    }
+  },
   "network": {
     "font_name": "4x6",
     "background": {
@@ -362,39 +419,6 @@
     "text": {
       "x": 125,
       "y": 63
-    }
-  },
-  "linescore": {
-    "enabled": false
-  },
-  "clock": {
-    "time": {
-      "x": 64,
-      "y": 22,
-      "font_name": "6x10"
-    },
-    "date": {
-      "x": 64,
-      "y": 36,
-      "font_name": "4x6"
-    }
-  },
-  "countdown": {
-    "number": {
-      "x": 64,
-      "y": 22,
-      "font_name": "10x20"
-    },
-    "label": {
-      "x": 64,
-      "y": 38,
-      "font_name": "6x10"
-    },
-    "event": {
-      "x": 0,
-      "y": 52,
-      "width": 128,
-      "font_name": "6x10"
     }
   }
 }

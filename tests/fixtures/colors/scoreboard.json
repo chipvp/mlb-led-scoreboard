@@ -36,6 +36,33 @@
       "b": 3
     }
   },
+  "linescore": {
+    "background": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    },
+    "away": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    },
+    "home": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    },
+    "header": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    },
+    "empty": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    }
+  },
   "inning": {
     "break": {
       "number": {
@@ -245,7 +272,7 @@
       "b": 3
     }
   },
-  "offday": {
+  "news": {
     "scrolling_text": {
       "r": 1,
       "g": 2,
@@ -304,11 +331,54 @@
       "b": 3
     }
   },
+  "abs_challenges": {
+    "available": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    },
+    "used": {
+      "r": 1,
+      "g": 2,
+      "b": 3
+    }
+  },
   "default": {
     "background": {
       "r": 1,
       "g": 2,
       "b": 3
+    }
+  },
+  "plugins": {
+    "clock": {
+      "time": {
+        "r": 1,
+        "g": 2,
+        "b": 3
+      },
+      "date": {
+        "r": 1,
+        "g": 2,
+        "b": 3
+      }
+    },
+    "countdown": {
+      "number": {
+        "r": 1,
+        "g": 2,
+        "b": 3
+      },
+      "label": {
+        "r": 1,
+        "g": 2,
+        "b": 3
+      },
+      "event": {
+        "r": 1,
+        "g": 2,
+        "b": 3
+      }
     }
   }
 }

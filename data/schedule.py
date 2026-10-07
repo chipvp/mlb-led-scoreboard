@@ -1,197 +1,162 @@
+import datetime
 import time
-from datetime import datetime, timedelta, timezone
+from collections import defaultdict
+from typing import Any, Optional
+from math import ceil
 
 import statsapi
+import wpbl_statsapi_adaptor
 
-import data.teams
-import debug
-from data import status
+from bullpen.logging import LOGGER
 from data.game import Game
-from data.update import UpdateStatus
+from bullpen.api import UpdateStatus
+from data.utils.circular_queue import CircularQueue
+from data.config import Config
 
-GAMES_REFRESH_RATE = 6 * 60
+GAMES_REFRESH_RATE = 15
 
 
 class Schedule:
-    def __init__(self, config):
+    def __init__(self, config: Config) -> None:
         self.config = config
-        self.date = self.config.parse_today()
         self.starttime = time.time()
         self.current_idx = 0
-        # all games for the day
-        self.__all_games = []
-        # the actual (filtered) schedule
-        self._games = []
+
+        delay_required = ceil(self.config.sync_delay_seconds / GAMES_REFRESH_RATE)
+
+        self._data_wait_queue = CircularQueue(delay_required + 1)
+        # the (filtered) schedule
+        self._games: list[dict[str, Any]] = []
+        self.priority = 0
         self.update(True)
 
     def update(self, force=False) -> UpdateStatus:
         if force or self.__should_update():
-            today = self.config.parse_today()
+            date = self.config.parse_today()
+            LOGGER.debug("Updating schedule for %s", date.strftime("%Y-%m-%d"))
             self.starttime = time.time()
-            try:
-                # add sportId=51 to additionally get WBC games
-                todays_games = statsapi.schedule(today.strftime("%Y-%m-%d"), sportId="1,51")
-                self.date, self.__all_games = self.__resolve_date(today, todays_games)
-            except:
-                debug.exception("Networking error while refreshing schedule")
+            all_games, exceptions = self.__fetch_games(date)
+
+            if exceptions == len(self.config.leagues):
                 return UpdateStatus.FAIL
+
+            if self.__should_show_yesterday(all_games):
+                yesterday = date - datetime.timedelta(days=1)
+                LOGGER.debug("Showing yesterday's scores (%s)", yesterday.strftime("%Y-%m-%d"))
+                yesterdays_games, exceptions = self.__fetch_games(yesterday)
+                if exceptions < len(self.config.leagues):
+                    all_games = yesterdays_games
+
+            priority, games = self.__filter_games(all_games)
+            games.sort(key=lambda g: g["game_datetime"])
+
+            if priority > self.priority:
+                # going up a priority level should never be delayed
+                self._data_wait_queue.clear()
+            self._data_wait_queue.push((priority, games))
+
+            priority, games = self._data_wait_queue.peek()
+            if len(games) > 0:
+                self.current_idx %= len(games)
             else:
-                debug.log("Updating schedule for %s", self.date)
-                games = self.__all_games
+                self.current_idx = 0
 
-                if self.config.rotation_only_preferred:
-                    games = Schedule.__filter_list_of_games(self.__all_games, self.config.preferred_teams)
-                if self.config.rotation_only_live:
-                    live_games = [g for g in games if status.is_live(g["status"]) or status.is_fresh(g["status"])]
-                    if live_games:
-                        # we never have games drop down to [], since we may still be indexing into it
-                        # but this is fine, since self.games_live() is will work even if we don't do this update
-                        games = live_games
-
-                if len(games) > 0:
-                    self.current_idx %= len(games)
-
-                self._games = games
-
-                return UpdateStatus.SUCCESS
+            self._games = games
+            self.priority = priority
+            LOGGER.debug(
+                "Schedule updated with %d games (priority %d) (current delay %d)",
+                len(self._games),
+                priority,
+                self.current_delay(),
+            )
+            return UpdateStatus.SUCCESS
 
         return UpdateStatus.DEFERRED
+
+    def __fetch_games(self, date) -> tuple[list[dict[str, Any]], int]:
+        """Fetch the schedule for every league. Returns the games and the number of leagues that failed."""
+        games = []
+        exceptions = 0
+        for league in self.config.leagues:
+            try:
+                league_games = league.statsapi.schedule(date.strftime("%Y-%m-%d"), **league.schedule_params)
+                games.extend([g | {"league": league} for g in league_games])
+            except Exception:
+                LOGGER.exception(f"Networking error while refreshing {league.name} schedule")
+                exceptions += 1
+        return games, exceptions
+
+    def __should_show_yesterday(self, todays_games) -> bool:
+        """
+        Whether to show yesterday's games instead of today's. Only until the configured number of hours
+        before the first pitch. A day with no games is never replaced, so a full league off-day still
+        shows the normal off-day screen rather than yesterday forever.
+        """
+        if not self.config.show_yesterday_scores_enabled or not todays_games:
+            return False
+
+        first_pitch = min(
+            datetime.datetime.fromisoformat(game["game_datetime"].replace("Z", "+00:00")) for game in todays_games
+        )
+        cutoff = first_pitch - datetime.timedelta(hours=self.config.show_yesterday_scores_hours_before)
+        return datetime.datetime.now(datetime.timezone.utc) < cutoff
 
     def __should_update(self):
         endtime = time.time()
         return endtime - self.starttime >= GAMES_REFRESH_RATE
 
-    # Falls back to `today` when there are no games scheduled, so a full
-    # league off-day shows the normal off-day screen instead of yesterday forever.
-    def __resolve_date(self, today, todays_games):
-        if not self.config.show_yesterday_scores_enabled or not todays_games:
-            return today, todays_games
-
-        first_pitch = min(
-            datetime.fromisoformat(game["game_datetime"].replace("Z", "+00:00")) for game in todays_games
-        )
-        cutoff = first_pitch - timedelta(hours=self.config.show_yesterday_scores_hours_before)
-        if datetime.now(timezone.utc) >= cutoff:
-            return today, todays_games
-
-        yesterday = today - timedelta(days=1)
-        yesterdays_games = statsapi.schedule(yesterday.strftime("%Y-%m-%d"), sportId="1,51")
-        return yesterday, yesterdays_games
-
-    # offday code
-    def is_offday_for_preferred_team(self):
-        if self.config.preferred_teams:
-            return not any(
-                data.teams.get_team_id(self.config.preferred_teams[0]) in [game["away_id"], game["home_id"]]
-                for game in self.__all_games  # only care if preferred team is actually in list
-            )
-        else:
-            return True
-
-    def is_offday(self):
-        return not len(self.__all_games)  # care about all MLB
-
-    @property
-    def all_games(self):
-        return self.__all_games
-
-    def games_live(self):
-        return any(status.is_fresh(g["status"]) or (status.is_live(g["status"])) for g in self._games)
+    def current_delay(self):
+        return (len(self._data_wait_queue) - 1) * GAMES_REFRESH_RATE
 
     def num_games(self):
         return len(self._games)
 
-    def get_preferred_game(self):
-        team_index = self._game_index_for_preferred_team()
-        self.current_idx = team_index
-        return self.__current_game()
-
-    def next_game(self):
-        # We only need to check the preferred team's game status if we're
-        # rotating during mid-innings because, otherwise, we would never
-        # have rotated off of it up in data
-        if (
-            not self.config.rotation_preferred_team_live_enabled
-            and self.config.rotation_preferred_team_live_mid_inning
-            and not self.is_offday_for_preferred_team()
-        ):
-            game_index = self._game_index_for_preferred_team()
-            if game_index >= 0:  # we return -1 if no live games for preferred team
-                scheduled_game = self._games[game_index]
-                preferred_game = Game.from_scheduled(scheduled_game, self.config.preferred_game_delay_multiplier, self.config.api_refresh_rate)
-                if preferred_game is not None:
-                    debug.log(
-                        "Preferred Team's Game Status: %s, %s %d",
-                        preferred_game.status(),
-                        preferred_game.inning_state(),
-                        preferred_game.inning_number(),
-                    )
-
-                    if status.is_live(preferred_game.status()) and not status.is_inning_break(
-                        preferred_game.inning_state()
-                    ):
-                        self.current_idx = game_index
-                        debug.log("Moving to preferred game, index: %d", self.current_idx)
-                        return preferred_game
-
-
+    def next_game(self, unless: Optional[Game] = None) -> Optional[Game]:
         self.current_idx = self.__next_game_index()
-        return self.__current_game()
-
-    def _game_index_for_preferred_team(self):
-        if not self.config.preferred_teams:
-            return -1  # no preferred team
-
-        # Prefer a live preferred team game if one exists
-        live_indices = self.get_live_preferred_game_indices()
-        if live_indices:
-            return live_indices[0]
-
-        # Fall back to first preferred team's scheduled game
-        team_id = data.teams.get_team_id(self.config.preferred_teams[0])
-        return next(
-            (
-                i
-                for i, game in enumerate(self._games)
-                if team_id in (game["away_id"], game["home_id"])
-            ),
-            -1,  # no preferred team game
-        )
-
-    def get_live_preferred_game_indices(self):
-        """Return indices of all games where a preferred team is currently live."""
-        teams = set(data.teams.get_team_id(t) for t in self.config.preferred_teams)
-        return [
-            i for i, game in enumerate(self._games)
-            if set([game["away_id"], game["home_id"]]).intersection(teams)
-            and (status.is_live(game["status"]) or status.is_fresh(game["status"]))
-        ]
-
-    def next_preferred_game(self):
-        """Advance to the next live preferred team game, cycling through them."""
-        indices = self.get_live_preferred_game_indices()
-        if not indices:
-            return self.next_game()
-
-        next_indices = [i for i in indices if i > self.current_idx]
-        self.current_idx = next_indices[0] if next_indices else indices[0]
-        return self.__current_game()
-
+        return self.__current_game(unless)
 
     def __next_game_index(self):
         counter = self.current_idx + 1
         if counter >= len(self._games):
             counter = 0
-        debug.log("Going to game index %d", counter)
+        if counter != self.current_idx:
+            LOGGER.debug("Schedule: going to game index %d", counter)
         return counter
 
-    def __current_game(self):
-        if self._games:
+    def __current_game(self, unless: Optional[Game] = None) -> Optional[Game]:
+        try:
             scheduled_game = self._games[self.current_idx]
-            return Game.from_scheduled(scheduled_game, self.config.preferred_game_delay_multiplier, self.config.api_refresh_rate)
-        return None
+            if unless and scheduled_game["game_id"] == unless.game_id:
+                return unless
+            return Game.from_scheduled(scheduled_game, self.config)
+        except IndexError:
+            return None
 
-    @staticmethod
-    def __filter_list_of_games(games, filter_teams):
-        teams = set(data.teams.get_team_id(t) for t in filter_teams)
-        return list(game for game in games if set([game["away_id"], game["home_id"]]).intersection(teams))
+    def __filter_games(self, all_games: list) -> tuple[int, list]:
+        """
+        Returns the highest priority level and the games that match that level,
+        for the given list of games and current time.
+        """
+        priorities: defaultdict[int, list] = defaultdict(list)
+        highest = 0
+
+        for rule in self.config.rotation_time_rules:
+            priority = rule.matches(datetime.datetime.now())
+            if priority:
+                highest = max(highest, priority)
+
+        for game in all_games:
+            seen = set()
+            for rule in self.config.rotation_game_rules:
+                if rule.priority() < highest:
+                    continue
+                priority, passive = rule.matches(game)
+                if priority:
+                    if priority not in seen:
+                        priorities[priority].append(game)
+                        seen.add(priority)
+
+                    if not passive:
+                        highest = max(highest, priority)
+
+        return highest, priorities[highest]
