@@ -16,13 +16,14 @@ class Team:
         self.special_uniform = special_uniform
         self.abs_challenges = abs_challenges
 
-    def lookup_color(self, team_colors):
+    def lookup_color(self, team_colors, use_special_uniform=True):
         """
         Given a team color object, this returns the colors for the team.
 
         The result is guaranteed to have the 'home', 'accent', and 'text' keys.
         Any missing data is filled in with the default colors.
-        If the team has a special uniform, the colors for that uniform are substituted
+        If the team has a special uniform, the colors for that uniform are substituted, unless
+        use_special_uniform is False, which returns the main uniform's colors.
         """
         default_colors = team_colors.color("default")
         if self.abbrev in _IGNORED_TEAMS:
@@ -30,7 +31,7 @@ class Team:
 
         try:
             colors = team_colors.color(self.abbrev.lower())
-            if self.special_uniform is not None and self.special_uniform in colors:
+            if use_special_uniform and self.special_uniform is not None and self.special_uniform in colors:
                 colors = colors | colors[self.special_uniform]
             return default_colors | colors
 

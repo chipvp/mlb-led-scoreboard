@@ -21,10 +21,17 @@ def __lift_black(color):
 
 
 # The challenge squares must stand out against each team's banner. Below this contrast ratio the configured
-# colors (yellow by default) are swapped for the team's own text color, which is chosen to read on its banner.
+# colors (yellow by default) are swapped for one of the team's own colors.
 _MIN_CHALLENGE_CONTRAST = 3.0
-# How far a spent challenge's color is mixed toward the banner color (0 = unchanged, 1 = invisible)
+# A replacement must also look lit: a dark color reads as an unlit LED, so an available challenge in navy
+# looks spent. Luminance is the floor for that, and the contrast it needs against the banner is slightly looser.
+_MIN_LIT_LUMINANCE = 0.05
+_MIN_LIT_CONTRAST = 2.5
+# How far a spent challenge's color is mixed toward the banner color (0 = unchanged, 1 = invisible). A color
+# that barely contrasts with its banner needs a deeper fade to stay distinguishable, up to the maximum.
 _SPENT_CHALLENGE_FADE = 0.6
+_MAX_SPENT_CHALLENGE_FADE = 0.85
+_MIN_SPENT_CONTRAST = 2.0
 
 
 def _luminance(color):
@@ -45,18 +52,38 @@ def _fade(color, background, amount):
     return {key: round(color[key] + (background[key] - color[key]) * amount) for key in ("r", "g", "b")}
 
 
-def abs_challenge_colors(available, used, background, text):
+def _spent_color(color, background):
+    fade = _SPENT_CHALLENGE_FADE
+    spent = _fade(color, background, fade)
+    while _contrast(color, spent) < _MIN_SPENT_CONTRAST and fade < _MAX_SPENT_CHALLENGE_FADE:
+        fade = min(fade + 0.05, _MAX_SPENT_CHALLENGE_FADE)
+        spent = _fade(color, background, fade)
+    return spent
+
+
+def abs_challenge_colors(available, used, background, text, accent, fallbacks=()):
     """Pick (available, spent) colors for a team's challenge squares.
 
     The configured colors are used as long as they contrast with the team's banner. Otherwise (yellow on a
-    white banner, say) the available color becomes the team's text color and a spent challenge is that color
-    faded toward the banner, so the two states stay distinguishable.
+    white banner, say) the available color becomes the team's side bar color, or its text color when that is
+    the one that reads, and a spent challenge is that color faded toward the banner so the two states stay
+    distinguishable. A candidate has to look lit as well as contrast: a dark color reads as an unlit LED,
+    which is what a spent challenge should look like. `fallbacks` (the main uniform's colors, when a special
+    uniform is on) are only tried once the colors of the uniform being worn have all failed that test.
     """
-    if _contrast(available, background) >= _MIN_CHALLENGE_CONTRAST:
+    configured_contrast = _contrast(available, background)
+    if configured_contrast >= _MIN_CHALLENGE_CONTRAST:
         return available, used
-    if _contrast(text, background) <= _contrast(available, background):
+
+    candidates = (accent, text, *fallbacks)
+    for color in candidates:
+        if _contrast(color, background) >= _MIN_LIT_CONTRAST and _luminance(color) >= _MIN_LIT_LUMINANCE:
+            return color, _spent_color(color, background)
+
+    best = max(candidates, key=lambda color: _contrast(color, background))
+    if _contrast(best, background) <= configured_contrast:
         return available, used
-    return text, _fade(text, background, _SPENT_CHALLENGE_FADE)
+    return best, _spent_color(best, background)
 
 
 def render_team_banner(
@@ -97,8 +124,23 @@ def render_team_banner(
     if scoreboard_colors is not None:
         banners = {"away": away_colors["home"], "home": __lift_black(home_colors["home"])}
         texts = {"away": away_colors["text"], "home": __lift_black(home_colors["text"])}
+        accents = {"away": away_colors["accent"], "home": __lift_black(home_colors["accent"])}
+        away_main = away_team.lookup_color(team_colors, use_special_uniform=False)
+        home_main = home_team.lookup_color(team_colors, use_special_uniform=False)
+        mains = {
+            "away": (away_main["accent"], away_main["text"]),
+            "home": (__lift_black(home_main["accent"]), __lift_black(home_main["text"])),
+        }
         __render_abs_challenges(
-            canvas, layout, scoreboard_colors, home_team.abs_challenges, away_team.abs_challenges, banners, texts
+            canvas,
+            layout,
+            scoreboard_colors,
+            home_team.abs_challenges,
+            away_team.abs_challenges,
+            banners,
+            texts,
+            accents,
+            mains,
         )
 
     home_text = __lift_black(home_colors["text"])
@@ -255,7 +297,7 @@ def __draw_filled_box(canvas, coords, color):
         graphics.DrawLine(canvas, x, y + h, x + w, y + h, c)
 
 
-def __render_abs_challenges(canvas, layout, colors, home_remaining, away_remaining, banners, texts):
+def __render_abs_challenges(canvas, layout, colors, home_remaining, away_remaining, banners, texts, accents, mains):
     try:
         abs_coords = layout.coords("teams.abs_challenges")
         configured_available = colors.color("abs_challenges.available")
@@ -273,7 +315,9 @@ def __render_abs_challenges(canvas, layout, colors, home_remaining, away_remaini
         cfg = abs_coords.get(side)
         if not cfg:
             continue
-        available, used = abs_challenge_colors(configured_available, configured_used, banners[side], texts[side])
+        available, used = abs_challenge_colors(
+            configured_available, configured_used, banners[side], texts[side], accents[side], mains[side]
+        )
         available_color = graphics.Color(available["r"], available["g"], available["b"])
         used_color = graphics.Color(used["r"], used["g"], used["b"])
         squares = cfg["squares"]
