@@ -6,5 +6,4 @@ bdfparser
 ./bullpen
 ./standings
 ./news
-HAP-python
 ./boards
