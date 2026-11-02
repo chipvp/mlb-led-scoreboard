@@ -14,6 +14,16 @@ class FakeClock:
         return self.now
 
 
+class StartupLogoTest(unittest.TestCase):
+    def test_logo_skipped_while_panel_is_off(self):
+        import main
+
+        self.assertTrue(main.should_draw_startup_logo(True, True, False))
+        self.assertFalse(main.should_draw_startup_logo(True, True, True))
+        self.assertFalse(main.should_draw_startup_logo(False, True, False))
+        self.assertFalse(main.should_draw_startup_logo(True, False, False))
+
+
 class FakeMatrix:
     def __init__(self):
         self.brightness = None
