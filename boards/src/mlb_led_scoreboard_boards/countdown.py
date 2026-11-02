@@ -1,6 +1,6 @@
 import re
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import bullpen.api as api
@@ -51,12 +51,39 @@ def parse_segments(graphics, label, default_color):
     return segments or [("", default_color)]
 
 
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")  # index = date.weekday()
+NTH_WEEKDAY = re.compile(r"(\d{1,2})-([A-Za-z]{3})-(\d|last)", re.ASCII | re.IGNORECASE)
+NTH_WEEKDAY_SEARCH_YEARS = 8  # a fifth Thursday of November can be 2+ years away
+
+
+def nth_weekday(year: int, month: int, weekday: int, nth: str) -> Optional[date]:
+    """The nth (1-5) or last weekday of a month, or None when the month has no such day (a fifth Thursday)."""
+    if nth == "last":
+        last_day = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
+        return last_day - timedelta(days=(last_day.weekday() - weekday) % 7)
+    first = date(year, month, 1)
+    day = first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (int(nth) - 1))
+    return day if day.month == month else None
+
+
 def resolve_date(date_str: str, today: date) -> date:
     """Parse an event date in one of these formats:
     - MM-DD       annual, rolls over to next year once it has passed
+    - MM-wkd-N    annual, the Nth weekday of a month (wkd is mon..sun, N is 1-5 or "last"), e.g. 11-thu-4 for
+                  Thanksgiving; a fifth weekday waits for the next year that has one
     - MM-DD-YY    one-time, 2-digit year (20YY)
     - YYYY-MM-DD  one-time, full ISO format
     """
+    date_str = date_str.strip()
+    if match := NTH_WEEKDAY.fullmatch(date_str):
+        month, name, nth = int(match[1]), match[2].lower(), match[3].lower()
+        if name not in WEEKDAYS or not 1 <= month <= 12 or nth == "0" or (nth.isdigit() and int(nth) > 5):
+            raise ValueError(f"not a date: {date_str!r}")
+        for year in range(today.year, today.year + NTH_WEEKDAY_SEARCH_YEARS + 1):
+            candidate = nth_weekday(year, month, WEEKDAYS.index(name), nth)
+            if candidate is not None and candidate >= today:
+                return candidate
+        raise ValueError(f"not a date: {date_str!r}")
     parts = date_str.split("-")
     if len(parts) == 2:
         month, day = int(parts[0]), int(parts[1])
