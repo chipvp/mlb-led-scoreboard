@@ -47,6 +47,7 @@ If you'd like to see support for another set of board dimensions, or have design
   * [Controlling the Display (Screen Rotation)](#controlling-the-display-screen-rotation)
   * [Synchronizing with Broadcasts](#synchronizing-with-broadcasts)
   * [Additional Features](#additional-features)
+  * [Remote brightness, power and spoiler switches](#remote-brightness-power-and-spoiler-switches)
   * [Command Line Flags](#command-line-flags)
 - [Personalization](#personalization)
   * [Custom Board Layout](#custom-board-layout)
