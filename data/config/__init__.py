@@ -62,7 +62,7 @@ class Config:
             json["rotation"]["screens"]
         )
 
-        # Teams named in any game rule. HomeKit gets a spoiler switch per team, and spoiler mode applies to them.
+        # Teams named in any game rule. The led-panel-control service gets a spoiler switch per team, and spoiler mode applies to them.
         self.preferred_teams = _preferred_team_names(json["rotation"]["screens"])
 
         # TODO moving this inside a 'plugin' is a bit weird?

@@ -383,6 +383,15 @@ Note that the actual delay may be slightly higher than your specified setting si
 * Previous Play Data - Data for the previous play can be shown on the game screen. See the [coordinates readme file](/coordinates/README.md) for details. Long and short play descriptions can be changed in data/plays.py
   * **NOTE:** Because play result data is ephemeral, not every play result will be displayed. Situations like a mound visit, injury, or other timeout immediately following a play often cause the play result to be immediately replaced on the MLB API.
 
+### Remote brightness, power and spoiler switches
+
+HomeKit control is not part of this project. The separate [led-panel-control](../led-panel-control) service (`~/projects/led-panel-control`, installed separately) owns the HomeKit bridge and writes two files that the scoreboard only reads, about once a second:
+
+- `/var/lib/led-panel/state` (override with `MLB_PANEL_STATE`): one line `<brightness>,<on|off>`, brightness 1..100, e.g. `40,off`.
+- `/var/lib/led-panel/spoiler` (override with `MLB_PANEL_SPOILER`): lines of `<team>=<on|off>`, plus `__global__=<on|off>`.
+
+Without these files the scoreboard runs at full brightness with spoiler mode off. A bad read keeps the last good state.
+
 ### Command Line Flags
 
 You can configure your LED matrix with the same flags used in the [rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix) library. More information on these arguments can be found in the library documentation.

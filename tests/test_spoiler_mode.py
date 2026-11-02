@@ -10,36 +10,109 @@ from renderers.games import game as game_renderer
 from renderers.games import postgame as postgame_renderer
 
 
+class FakeClock:
+    def __init__(self):
+        self.now = 100.0
+
+    def __call__(self):
+        return self.now
+
+
 class TestSpoilerModeManager(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.shared = Path(self.tmp.name) / "spoiler"
+        self.local = Path(self.tmp.name) / "local"
+        self.clock = FakeClock()
         patches = [
-            mock.patch.object(manager, "_STATE_FILE", Path(self.tmp.name) / "state"),
-            mock.patch.object(manager, "_state", {}),
-            mock.patch("builtins.print"),
+            mock.patch.dict("os.environ", {"MLB_PANEL_SPOILER": str(self.shared)}),
+            mock.patch.object(manager, "FALLBACK_SPOILER_FILE", self.local),
+            mock.patch.object(manager, "_clock", self.clock),
         ]
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
-        self.addCleanup(self.tmp.cleanup)
+        manager.reset()
+        self.addCleanup(manager.reset)
 
-    def test_off_by_default(self):
+    def tick(self, seconds=1.5):
+        self.clock.now += seconds
+
+    def test_off_by_default_with_no_files(self):
         self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+        self.assertFalse(manager.is_spoiler_mode())
 
     def test_team_switch_only_affects_that_team(self):
-        manager.set_team_spoiler_mode("Cubs", True)
+        self.shared.write_text("Cubs=on\nAngels=off\n__global__=off\n")
         self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.assertTrue(manager.is_team_spoiler_mode("Cubs"))
         self.assertFalse(manager.is_spoiler_free_for_team("Angels"))
 
     def test_global_switch_affects_every_team(self):
-        manager.set_spoiler_mode(True)
+        self.shared.write_text("__global__=on\n")
+        self.assertTrue(manager.is_spoiler_mode())
         self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
         self.assertTrue(manager.is_spoiler_free_for_team("Angels"))
 
-    def test_state_round_trips_through_file(self):
-        manager.set_team_spoiler_mode("Cubs", True)
-        manager.set_spoiler_mode(False)
-        self.assertEqual(manager._load_state(), {"Cubs": True, manager._GLOBAL_KEY: False})
+    def test_reread_at_most_once_a_second(self):
+        self.shared.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.shared.write_text("Cubs=off\n")
+        self.tick(0.5)
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.tick(0.6)
+        self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_read_error_keeps_last_good(self):
+        self.shared.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.shared.unlink()
+        self.shared.mkdir()  # exists but cannot be read as a file (OSError, not missing)
+        self.tick()
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_falls_back_to_local_file_only_when_shared_is_missing(self):
+        self.local.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.shared.write_text("Cubs=off\n")
+        self.tick()
+        self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_vanished_shared_file_keeps_last_good_not_stale_local(self):
+        self.shared.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.local.write_text("Cubs=off\n")
+        self.shared.unlink()
+        self.tick()
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_unreadable_shared_never_uses_stale_local(self):
+        self.local.write_text("Cubs=on\n")
+        self.shared.mkdir()
+        self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_empty_or_garbage_file_keeps_last_good(self):
+        self.shared.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        for bad in ("", "\n", "garbage", "Cubs=maybe\n", "Cubs"):
+            with self.subTest(bad=bad):
+                self.shared.write_text(bad)
+                self.tick()
+                self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_first_read_empty_is_all_off(self):
+        self.shared.write_text("")
+        self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_partially_valid_file_parses(self):
+        self.shared.write_text("junk\nCubs=on\nAngels=what\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.assertFalse(manager.is_spoiler_free_for_team("Angels"))
+
+    def test_bom_is_tolerated(self):
+        self.shared.write_bytes(b"\xef\xbb\xbfCubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
 
 
 class TestPreferredTeamNames(unittest.TestCase):
