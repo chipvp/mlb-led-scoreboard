@@ -69,6 +69,30 @@ class TestResolveDate(unittest.TestCase):
     def test_iso_date(self):
         self.assertEqual(countdown.resolve_date("2026-09-01", TODAY), date(2026, 9, 1))
 
+    def test_nth_weekday_of_a_month_repeats_every_year(self):
+        # Thanksgiving: 4th Thursday of November (the 26th in 2026, the 25th in 2027).
+        self.assertEqual(countdown.resolve_date("11-thu-4", TODAY), date(2026, 11, 26))
+        self.assertEqual(countdown.resolve_date("11-thu-4", date(2026, 11, 26)), date(2026, 11, 26))
+        self.assertEqual(countdown.resolve_date("11-thu-4", date(2026, 11, 27)), date(2027, 11, 25))
+
+    def test_last_weekday_of_a_month(self):
+        self.assertEqual(countdown.resolve_date("05-mon-last", date(2026, 1, 1)), date(2026, 5, 25))  # Memorial Day
+        self.assertEqual(countdown.resolve_date("05-mon-last", TODAY), date(2027, 5, 31))
+        self.assertEqual(countdown.resolve_date("12-thu-last", date(2026, 12, 1)), date(2026, 12, 31))
+
+    def test_a_fifth_weekday_waits_for_a_month_that_has_one(self):
+        # November 2026 and 2027 have only four Thursdays; 2028 has five.
+        self.assertEqual(countdown.resolve_date("11-thu-5", TODAY), date(2028, 11, 30))
+
+    def test_nth_weekday_is_case_and_space_tolerant(self):
+        self.assertEqual(countdown.resolve_date(" 11-THU-4 ", TODAY), date(2026, 11, 26))
+        self.assertEqual(countdown.resolve_date("1-Mon-3", date(2026, 1, 1)), date(2026, 1, 19))
+
+    def test_bad_nth_weekday_raises_value_error(self):
+        for bad in ("11-xyz-4", "11-thu-0", "11-thu-6", "13-thu-1", "00-thu-1", "11-thu-first"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                countdown.resolve_date(bad, TODAY)
+
 
 class TestParseSegments(unittest.TestCase):
     def test_named_hex_and_close_tags(self):
