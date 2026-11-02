@@ -56,7 +56,7 @@ NTH_WEEKDAY = re.compile(r"(\d{1,2})-([A-Za-z]{3})-(\d|last)", re.ASCII | re.IGN
 NTH_WEEKDAY_SEARCH_YEARS = 8  # a fifth Thursday of November can be 2+ years away
 
 
-def nth_weekday(year: int, month: int, weekday: int, nth: str):
+def nth_weekday(year: int, month: int, weekday: int, nth: str) -> Optional[date]:
     """The nth (1-5) or last weekday of a month, or None when the month has no such day (a fifth Thursday)."""
     if nth == "last":
         last_day = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)

@@ -31,7 +31,6 @@ from data import Data
 from data.config import Config
 from data.plugins import load_plugins
 from data.paths import *
-from homekit_server import start_homekit_background_thread
 
 from renderers.main import MainRenderer
 from version import SCRIPT_NAME, SCRIPT_VERSION
@@ -44,6 +43,11 @@ DATA_PROFILER = cProfile.Profile()
 RENDER_PROFILER = cProfile.Profile()
 DATA_PROFILE_PATH = LOGS_DIRECTORY / "data.prof"
 RENDER_PROFILE_PATH = LOGS_DIRECTORY / "render.prof"
+
+
+def should_draw_startup_logo(logo_exists, is_hardware, panel_off):
+    """The logo is drawn straight to the panel, so never while the shared panel state says off."""
+    return logo_exists and is_hardware and not panel_off
 
 
 def main(matrix, config):
@@ -64,12 +68,10 @@ def main(matrix, config):
 
     # MLB image disabled when using renderer, for now.
     # see: https://github.com/ty-porter/RGBMatrixEmulator/issues/9#issuecomment-922869679
-    if os.path.exists(logo_path) and driver.is_hardware():
+    if should_draw_startup_logo(os.path.exists(logo_path), driver.is_hardware(), brightness_manager.is_off()):
         logo = Image.open(logo_path)
         matrix.SetImage(logo.convert("RGB"))
         logo.close()
-
-    start_homekit_background_thread(config.preferred_teams)
 
     plugins = load_plugins(config)
 

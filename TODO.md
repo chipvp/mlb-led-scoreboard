@@ -2,9 +2,9 @@
 
 ## Bigger features
 
-- [x] **Per-team spoiler switches** — replace the single global "Spoiler Free" HomeKit switch with multiple switches: one per preferred team (e.g. Cubs, Angels) that enables spoiler-free mode for just that team's games, plus a general "Spoiler Mode" switch that hides scores for all teams. Currently `homekit_server.py` exposes one `SpoilerModeAccessory` and `spoiler_mode_manager.py` stores a single global bool (`is_spoiler_mode()`); `renderers/main.py:106` gates on `spoiler_mode_manager.is_spoiler_mode() and is_preferred_game`. Needs `spoiler_mode_manager` to track per-team state (e.g. a set/dict of team abbreviations plus a global flag) and `homekit_server.py` to dynamically create one accessory per preferred team plus the global one.
+- [x] **Per-team spoiler switches** — one switch per preferred team plus a global "Spoiler Mode" switch. The switches and the HomeKit bridge now live in the separate `led-panel-control` project (`~/projects/led-panel-control`); `spoiler_mode_manager.py` only reads `/var/lib/led-panel/spoiler`.
 - [x] **Linescore display** — inning-by-inning run totals on the final screen. Still open: show it for live games too.
-- [x] **HomeKit brightness state isn't kept across reboots / service restarts** — fixed: `BrightnessAccessory` now starts from `brightness_manager`'s saved on/off and level, and `power_on()` saves the level it restores.
+- [x] **HomeKit brightness state isn't kept across reboots / service restarts** — fixed in `led-panel-control` (`~/projects/led-panel-control`), which owns `/var/lib/led-panel/state`; `brightness_manager.py` only reads it.
 - [ ] **Auto-brightness by time of day** — dim display at night automatically without needing HomeKit.
 - [ ] **Pitch speed/type on live games** — coordinates/color config already support `atbat.pitch`; verify it's wired up and enabled by default.
 
