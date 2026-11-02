@@ -6,8 +6,9 @@ registered matrix; it never writes the file.
 
 State file, in order, on every poll:
   1. $MLB_PANEL_STATE, or /var/lib/led-panel/state when unset;
-  2. the old local `.brightness_state` next to this file, used ONLY when the shared file cannot be opened
-     (missing, or any other OSError). A shared file that exists but holds garbage does not fall through.
+  2. the old local `.brightness_state` next to this file, used ONLY when the shared file is missing
+     (FileNotFoundError) and no good shared read has happened yet. Garbage, other OSErrors or a vanished file after a
+     good read keep the last good state.
 
 When the content is garbage, empty or half-written, or no file is readable, the LAST GOOD state keeps applying, so a
 transient bad read never flashes a panel that is meant to be off. Only before any good read is the default used
@@ -37,6 +38,7 @@ _lock = threading.RLock()
 _clock = time.monotonic  # replaced in tests
 _matrix = None
 _state = DEFAULT_STATE
+_shared_good = False  # a good read of the shared file has happened
 _last_good = None  # last state read successfully; None until the first good read
 _last_poll = None  # clock value of the last poll; None forces the next one
 _applied_brightness = None
@@ -47,10 +49,10 @@ _warned_unreadable = set()
 
 def reset() -> None:
     """Forget the matrix and all state (for tests)."""
-    global _matrix, _state, _last_good, _last_poll, _applied_brightness, _applied_off, _last_problem
+    global _matrix, _state, _last_good, _last_poll, _applied_brightness, _applied_off, _last_problem, _shared_good
     with _lock:
         _matrix, _state, _last_good, _last_poll = None, DEFAULT_STATE, None, None
-        _applied_brightness, _applied_off, _last_problem = None, False, None
+        _applied_brightness, _applied_off, _last_problem, _shared_good = None, False, None, False
         _warned_unreadable.clear()
 
 
@@ -84,32 +86,50 @@ def _keep() -> tuple:
 
 
 def _read() -> tuple:
-    global _last_problem, _last_good
-    for path in state_paths():
-        try:
-            text = path.read_bytes().decode("utf-8-sig", errors="replace")
-        except FileNotFoundError:
-            continue
-        except OSError as e:  # present but unreadable: say so once, try the next path
-            message = f"Cannot read panel state file {path}: {e}"
-            if message not in _warned_unreadable:
-                _warned_unreadable.add(message)
-                LOGGER.warning("%s", message)
-            continue
-        try:
-            state = _parse(text)
-        except ValueError as e:
+    """Shared file first. The legacy local file is used ONLY if the shared file is missing (FileNotFoundError) and no
+    good shared read has happened in this process. Any other failure keeps the last good state (or the default)."""
+    global _last_problem, _last_good, _shared_good
+    shared, legacy = state_paths()
+    path, from_shared = shared, True
+    try:
+        text = shared.read_bytes().decode("utf-8-sig", errors="replace")
+    except FileNotFoundError:
+        if _shared_good:
             state = _keep()
-            _problem(f"Ignoring panel state file {path}: {e}; keeping {state[0]},{'off' if state[1] else 'on'}")
+            _problem(f"Panel state file {shared} vanished; keeping {state[0]},{'off' if state[1] else 'on'}")
             return state
-        _last_problem = None
-        _last_good = state
+        path, from_shared = legacy, False
+        try:
+            text = legacy.read_bytes().decode("utf-8-sig", errors="replace")
+        except OSError as e:
+            if not isinstance(e, FileNotFoundError):
+                _warn_unreadable(legacy, e)
+            state = _keep()
+            _problem(
+                f"No usable panel state file ({shared}, {legacy}); keeping {state[0]},{'off' if state[1] else 'on'}"
+            )
+            return state
+    except OSError as e:  # present but unreadable: never fall through to the stale local file
+        _warn_unreadable(shared, e)
+        return _keep()
+    try:
+        state = _parse(text)
+    except ValueError as e:
+        state = _keep()
+        _problem(f"Ignoring panel state file {path}: {e}; keeping {state[0]},{'off' if state[1] else 'on'}")
         return state
-    state = _keep()
-    _problem(
-        f"No usable panel state file ({', '.join(str(p) for p in state_paths())}); keeping {state[0]},{'off' if state[1] else 'on'}"
-    )
+    _last_problem = None
+    _last_good = state
+    if from_shared:
+        _shared_good = True
     return state
+
+
+def _warn_unreadable(path, e) -> None:
+    message = f"Cannot read panel state file {path}: {e}"
+    if message not in _warned_unreadable:
+        _warned_unreadable.add(message)
+        LOGGER.warning("%s", message)
 
 
 def _apply() -> None:

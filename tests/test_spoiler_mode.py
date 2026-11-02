@@ -79,6 +79,37 @@ class TestSpoilerModeManager(unittest.TestCase):
         self.tick()
         self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
 
+    def test_vanished_shared_file_keeps_last_good_not_stale_local(self):
+        self.shared.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.local.write_text("Cubs=off\n")
+        self.shared.unlink()
+        self.tick()
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_unreadable_shared_never_uses_stale_local(self):
+        self.local.write_text("Cubs=on\n")
+        self.shared.mkdir()
+        self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_empty_or_garbage_file_keeps_last_good(self):
+        self.shared.write_text("Cubs=on\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        for bad in ("", "\n", "garbage", "Cubs=maybe\n", "Cubs"):
+            with self.subTest(bad=bad):
+                self.shared.write_text(bad)
+                self.tick()
+                self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_first_read_empty_is_all_off(self):
+        self.shared.write_text("")
+        self.assertFalse(manager.is_spoiler_free_for_team("Cubs"))
+
+    def test_partially_valid_file_parses(self):
+        self.shared.write_text("junk\nCubs=on\nAngels=what\n")
+        self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))
+        self.assertFalse(manager.is_spoiler_free_for_team("Angels"))
+
     def test_bom_is_tolerated(self):
         self.shared.write_bytes(b"\xef\xbb\xbfCubs=on\n")
         self.assertTrue(manager.is_spoiler_free_for_team("Cubs"))

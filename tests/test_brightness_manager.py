@@ -127,6 +127,22 @@ class TestBrightnessManager(unittest.TestCase):
         self.tick()
         self.assertEqual(bm.get_brightness(), 25)
 
+    def test_vanished_shared_file_keeps_shared_value_not_stale_local(self):
+        self.shared.write_text("55,on")
+        self.assertEqual(bm.get_brightness(), 55)
+        self.local.write_text("40,off")
+        self.shared.unlink()
+        self.tick()
+        self.assertEqual((bm.get_brightness(), bm.is_off()), (55, False))
+
+    def test_unreadable_shared_never_uses_stale_local(self):
+        self.local.write_text("40,off")
+        self.shared.mkdir()  # IsADirectoryError, not FileNotFoundError
+        self.assertEqual((bm.get_brightness(), bm.is_off()), (100, False))
+        with mock.patch.object(Path, "read_bytes", side_effect=PermissionError("denied")):
+            self.tick()
+            self.assertEqual((bm.get_brightness(), bm.is_off()), (100, False))
+
     def test_poll_is_throttled_to_once_a_second(self):
         self.shared.write_text("40,on")
         self.assertEqual(bm.get_brightness(), 40)

@@ -24,13 +24,14 @@ _clock = time.monotonic  # replaced in tests
 _state = {}
 _last_poll = None
 _last_problem = None
+_shared_good = False
 
 
 def reset() -> None:
     """Forget cached state (for tests)."""
-    global _state, _last_poll, _last_problem
+    global _state, _last_poll, _last_problem, _shared_good
     with _lock:
-        _state, _last_poll, _last_problem = {}, None, None
+        _state, _last_poll, _last_problem, _shared_good = {}, None, None, False
 
 
 def spoiler_paths() -> list:
@@ -38,12 +39,15 @@ def spoiler_paths() -> list:
 
 
 def _parse(text: str) -> dict:
+    """Raises ValueError when no line is a valid `key=on|off` (empty or damaged file)."""
     state = {}
     for line in text.splitlines():
-        key, _, value = line.partition("=")
-        key = key.strip()
-        if key:
-            state[key] = value.strip().lower() == "on"
+        key, sep, value = line.partition("=")
+        key, value = key.strip(), value.strip().lower()
+        if key and sep and value in ("on", "off"):
+            state[key] = value == "on"
+    if not state:
+        raise ValueError("no valid 'key=on|off' line")
     return state
 
 
@@ -55,18 +59,36 @@ def _problem(message: str) -> None:
 
 
 def _read() -> dict:
-    global _last_problem
-    for path in spoiler_paths():
-        try:
-            text = path.read_bytes().decode("utf-8-sig", errors="replace")
-        except FileNotFoundError:
-            continue
-        except OSError as e:
-            _problem(f"Cannot read spoiler file {path}: {e}; keeping the last state")
+    """Shared file first; the legacy local file ONLY if the shared one is missing and no good shared read has
+    happened. Any other failure, or an empty/damaged file, keeps the last good state."""
+    global _last_problem, _shared_good
+    shared, legacy = spoiler_paths()
+    path, from_shared = shared, True
+    try:
+        text = shared.read_bytes().decode("utf-8-sig", errors="replace")
+    except FileNotFoundError:
+        if _shared_good:
+            _problem(f"Spoiler file {shared} vanished; keeping the last state")
             return _state
-        _last_problem = None
-        return _parse(text)
-    return _state  # no file anywhere: nothing has been set, or keep what we had
+        path, from_shared = legacy, False
+        try:
+            text = legacy.read_bytes().decode("utf-8-sig", errors="replace")
+        except OSError as e:
+            if not isinstance(e, FileNotFoundError):
+                _problem(f"Cannot read spoiler file {legacy}: {e}; keeping the last state")
+            return _state
+    except OSError as e:
+        _problem(f"Cannot read spoiler file {shared}: {e}; keeping the last state")
+        return _state
+    try:
+        state = _parse(text)
+    except ValueError as e:
+        _problem(f"Ignoring spoiler file {path}: {e}; keeping the last state")
+        return _state
+    _last_problem = None
+    if from_shared:
+        _shared_good = True
+    return state
 
 
 def _refresh() -> None:
