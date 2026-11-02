@@ -44,7 +44,7 @@ _last_poll = None  # clock value of the last poll; None forces the next one
 _applied_brightness = None
 _applied_off = False
 _last_problem = None
-_warned_unreadable = set()
+_warned_unreadable: set[str] = set()
 
 
 def reset() -> None:

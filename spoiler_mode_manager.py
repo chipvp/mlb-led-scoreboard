@@ -11,6 +11,7 @@ import os
 import threading
 import time
 from pathlib import Path
+from typing import Optional
 
 LOGGER = logging.getLogger("mlbled")
 
@@ -21,9 +22,9 @@ _GLOBAL_KEY = "__global__"
 
 _lock = threading.RLock()
 _clock = time.monotonic  # replaced in tests
-_state = {}
-_last_poll = None
-_last_problem = None
+_state: dict[str, bool] = {}
+_last_poll: Optional[float] = None
+_last_problem: Optional[str] = None
 _shared_good = False
 
 
@@ -103,17 +104,17 @@ def _refresh() -> None:
 def is_spoiler_mode() -> bool:
     with _lock:
         _refresh()
-        return _state.get(_GLOBAL_KEY, False)
+        return bool(_state.get(_GLOBAL_KEY, False))
 
 
 def is_team_spoiler_mode(team: str) -> bool:
     with _lock:
         _refresh()
-        return _state.get(team, False)
+        return bool(_state.get(team, False))
 
 
 def is_spoiler_free_for_team(team: str) -> bool:
     """True if the global switch or that team's own switch is on."""
     with _lock:
         _refresh()
-        return _state.get(_GLOBAL_KEY, False) or _state.get(team, False)
+        return bool(_state.get(_GLOBAL_KEY, False) or _state.get(team, False))
